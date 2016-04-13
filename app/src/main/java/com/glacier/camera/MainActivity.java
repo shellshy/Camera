@@ -118,7 +118,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
     public float test_angle = 0.0f;
     public String test_last_saved_image = null;
 
-    String time;
+    private boolean lock_exposure = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -129,11 +129,9 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
         }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        if (getIntent().hasExtra("time")) {
-            time = getIntent().getExtras().getString("time");
+        if(getIntent().hasExtra("auto_lock")){
+            lock_exposure = getIntent().getExtras().getBoolean("auto_lock",false);
         }
-
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         if (MyDebug.LOG)
             Log.d(TAG, "onCreate: time after setting default preference values: " + (System.currentTimeMillis() - debug_time));
@@ -228,7 +226,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
             Log.d(TAG, "onCreate: time after creating preview: " + (System.currentTimeMillis() - debug_time));
 
 	    /*View switchCameraButton = (View) findViewById(R.id.switch_camera);
-	    switchCameraButton.setVisibility(preview.getCameraControllerManager().getNumberOfCameras() > 1 ? View.VISIBLE : View.GONE);*/
+        switchCameraButton.setVisibility(preview.getCameraControllerManager().getNumberOfCameras() > 1 ? View.VISIBLE : View.GONE);*/
         View speechRecognizerButton = (View) findViewById(R.id.audio_control);
         speechRecognizerButton.setVisibility(View.GONE);
         if (MyDebug.LOG)
@@ -324,6 +322,14 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
 
         if (MyDebug.LOG)
             Log.d(TAG, "onCreate: total time for Activity startup: " + (System.currentTimeMillis() - debug_time));
+
+        if (getIntent().hasExtra("auto_run") && getIntent().getExtras().getBoolean("auto_run", false)) {
+            new Handler().postDelayed(new Runnable() {
+                public void run() {
+                    takePicture();
+                }
+            }, 3000);
+        }
     }
 
     @TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -1643,6 +1649,18 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
             Log.d(TAG, "takePicture");
         closePopup();
         this.preview.takePicturePressed();
+        lockExposure();
+    }
+
+    private void lockExposure(){
+        ImageButton exposureLockButton = (ImageButton) findViewById(R.id.exposure_lock);
+        exposureLockButton.setVisibility(preview.supportsExposureLock() && !mainUI.inImmersiveMode() ? View.VISIBLE : View.GONE);
+        if (preview.supportsExposureLock()) {
+            if(lock_exposure!=preview.isExposureLocked()){
+                this.preview.toggleExposureLock();
+                exposureLockButton.setImageResource(preview.isExposureLocked() ? R.drawable.exposure_locked : R.drawable.exposure_unlocked);
+            }
+        }
     }
 
     void lockScreen() {
@@ -2085,10 +2103,8 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
                 simple = false;
             }
             String max_duration_value = sharedPreferences.getString(PreferenceKeys.getVideoMaxDurationPreferenceKey(), "10");
-            if (time != null) {
-                max_duration_value = time;
-            }
             if (max_duration_value.length() > 0 && !max_duration_value.equals("0")) {
+                sharedPreferences.edit().putString(PreferenceKeys.getVideoMaxDurationPreferenceKey(), max_duration_value).commit();
                 String[] entries_array = getResources().getStringArray(R.array.preference_video_max_duration_entries);
                 String[] values_array = getResources().getStringArray(R.array.preference_video_max_duration_values);
                 int index = Arrays.asList(values_array).indexOf(max_duration_value);

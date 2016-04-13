@@ -2,17 +2,17 @@
 <resources>
 
     <string name="app_name">Open Camera</string>
-    <string name="action_settings">设置</string>    
+    <string name="action_settings">设置</string>
     <string name="action_popup">弹出设置</string>
     <string name="intro_text">轻触聚焦，点击蓝色相机按钮来拍照。点击设置中的在线帮助可以获得更多帮助。Open Camera 是完全免费的。如果你喜欢这个 app，请考虑购买我的捐赠 app :)(查看设置中的链接，或者在线帮助)。\n\n隐私政策：必须允许位置许可才能进行地理标记，但默认这是关闭的。如果开启，你的位置被编码在保存的文件中(并且它仅被用于此目的).\n\n(此消息将不会再显示。)</string>
     <string name="intro_ok">好 (此消息将不再显示)</string>
-    
+
     <string name="answer_yes">是</string>
     <string name="answer_no">否</string>
 
     <string name="on">开启</string> <!-- whether a setting is turned on, e.g., "Auto-stabilise: On" -->
     <string name="off">关闭</string> <!-- whether a setting is turned off, e.g., "Auto-stabilise: Off" -->
-    
+
     <string name="choose_save_location">选择保存位置:</string>
     <string name="clear_folder_history">清除文件夹历史</string>
     <string name="clear_folder_history_question">清除文件夹历史？</string>
@@ -60,7 +60,7 @@
     <string name="color_effect">颜色效果</string>
     <string name="scene_mode">场景模式</string>
     <string name="white_balance">白平衡</string>
-    
+
     <string name="angle">角度</string>
     <string name="direction">方向</string>
     <string name="failed_to_open_camera_1">打开相机失败。</string>
@@ -71,10 +71,10 @@
     <string name="free_memory">可用内存</string>
     <string name="screen_lock_message_1">[锁定:</string>
     <string name="screen_lock_message_2">滑动以解锁]</string>
-    
+
     <string name="failed_to_stamp">在照片上戳记失败</string>
     <string name="metres_abbreviation">m</string> <!-- symbol short for metres -->
-    
+
     <string name="preference_category_camera_effects">相机特效</string>
     <string name="preference_auto_stabilise">自动稳定</string>
     <string name="preference_auto_stabilise_summary">图像将被旋转，使它们自动水平(仅照片) (拍照更慢，并且在内存过低的设备上失败)</string>
@@ -174,7 +174,7 @@
     <string name="preference_keep_display_on_summary">如果开启，当 Open Camera 的主界面激活时，屏幕将不会关闭。</string>
     <string name="preference_max_brightness">强制最大亮度</string>
     <string name="preference_max_brightness_summary">强制屏幕以最大亮度显示，而不是设备默认值</string>
-    
+
     <string name="preference_category_camera_quality">照片和视频设置</string>
     <string name="preference_screen_photo_settings">照片设置…</string>
     <string name="preference_screen_video_settings">视频设置…</string>
@@ -231,7 +231,7 @@
     <string name="preference_record_audio_channels_summary">规定使用单声道或者立体声进行录音（仅部分设备支持立体声）。</string>
     <string name="preference_video_flash">录像时闪光</string>
     <string name="preference_video_flash_summary">如果启用，录像时闪光将开启/关闭 (在一段距离外可以用来告诉相机仍然在录制)。</string>
-    
+
     <string name="preference_category_online">杂项</string>
     <string name="preference_online_help">在线帮助</string>
     <string name="preference_donate">捐赠以支持开发</string>
@@ -248,7 +248,7 @@
     <string name="about_available">可用</string>
     <string name="about_not_available">不可用</string>
     <string name="about_copy_to_clipboard">复制到剪贴板</string>
-    
+
     <string name="take_photo">拍照</string>
     <string name="gallery">图库</string>
     <string name="exposure">曝光</string>
@@ -259,7 +259,7 @@
     <string name="switch_video">切换视频</string>
     <string name="trash">删除上一张照片</string>
     <string name="share">共享照片</string>
-    
+
     <string name="parent_folder">父文件夹</string>
     <string name="use_folder">使用文件夹</string>
     <string name="new_folder">新文件夹</string>
