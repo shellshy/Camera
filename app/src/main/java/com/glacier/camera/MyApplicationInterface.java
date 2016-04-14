@@ -520,7 +520,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 
     private boolean getThumbnailAnimationPref() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-    	return sharedPreferences.getBoolean(PreferenceKeys.getThumbnailAnimationPreferenceKey(), true);
+    	return sharedPreferences.getBoolean(PreferenceKeys.getThumbnailAnimationPreferenceKey(), false);
     }
     
     @Override
@@ -1024,7 +1024,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			Log.d(TAG, "remaining_time: " + remaining_time);
 		}
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-		if( sharedPreferences.getBoolean(PreferenceKeys.getTimerBeepPreferenceKey(), true) ) {
+		if( sharedPreferences.getBoolean(PreferenceKeys.getTimerBeepPreferenceKey(), false) ) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "play beep!");
 			boolean is_last = remaining_time <= 1000;
@@ -1750,7 +1750,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 		}
 		
-		if( sharedPreferences.getBoolean(PreferenceKeys.getShowTimePreferenceKey(), true) ) {
+		if( sharedPreferences.getBoolean(PreferenceKeys.getShowTimePreferenceKey(), false) ) {
 			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 			p.setTextAlign(Paint.Align.LEFT);
 			int location_x = (int) (50 * scale + 0.5f); // convert dps to pixels

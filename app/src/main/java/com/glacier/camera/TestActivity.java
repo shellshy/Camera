@@ -62,6 +62,7 @@ public class TestActivity extends Activity {
         if (controller != null) {
             controller.release();
         }
+        CamUtil.setRepeatRecord(TestActivity.this);
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

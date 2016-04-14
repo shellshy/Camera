@@ -4,5 +4,5 @@ package com.glacier.camera;
  *  released versions.
  */
 public class MyDebug {
-	public static final boolean LOG = false;
+	public static final boolean LOG = true;
 }

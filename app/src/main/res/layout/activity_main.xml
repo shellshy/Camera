@@ -70,7 +70,6 @@
         android:padding="10dp"
         android:scaleType="fitCenter"
         android:contentDescription="@string/action_settings"
-        android:visibility="gone"
         android:src="@drawable/settings"
         android:onClick="clickedSettings"
         />
@@ -118,7 +117,7 @@
         android:onClick="clickedExposure"
         />
 
-    <!--<ImageButton
+    <ImageButton
         android:id="@+id/switch_video"
         android:layout_width="50dp"
         android:layout_height="50dp"
@@ -127,19 +126,18 @@
         android:contentDescription="@string/switch_video"
         android:src="@drawable/switch_video"
         android:onClick="clickedSwitchVideo"
-        />-->
+        />
 
-    <!--<ImageButton
+    <ImageButton
         android:id="@+id/switch_camera"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:padding="10dp"
         android:scaleType="fitCenter"
-        android:visibility="invisible"
         android:contentDescription="@string/switch_camera"
         android:src="@drawable/switch_camera"
         android:onClick="clickedSwitchCamera"
-        />-->
+        />
 
     <ImageButton
         android:id="@+id/audio_control"

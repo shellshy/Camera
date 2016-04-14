@@ -110,4 +110,9 @@ public class CamUtil {
         PreferenceManager.getDefaultSharedPreferences(context).edit()
                 .putString(PreferenceKeys.getVideoMaxDurationPreferenceKey(), String.valueOf(time)).commit();
     }
+
+    public static void setRepeatRecord(Context context){
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        sharedPreferences.edit().putString(PreferenceKeys.getVideoRestartPreferenceKey(), "1").commit();
+    }
 }
