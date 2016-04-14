@@ -23,7 +23,8 @@ import android.widget.RelativeLayout;
 import android.widget.SeekBar;
 import android.widget.ZoomControls;
 
-
+/** This contains functionality related to the main UI.
+ */
 public class MainUI {
 	private static final String TAG = "MainUI";
 
@@ -36,7 +37,7 @@ public class MainUI {
 	private boolean ui_placement_right = true;
 
 	private boolean immersive_mode = false;
-    private boolean show_gui = true;
+    private boolean show_gui = true; // result of call to showGUI() - false means a "reduced" GUI is displayed, whilst taking photo or video
 
 	public MainUI(MainActivity main_activity) {
 		if( MyDebug.LOG )
@@ -50,15 +51,15 @@ public class MainUI {
 			Log.d(TAG, "layoutUI");
 			debug_time = System.currentTimeMillis();
 		}
-
+		//this.preview.updateUIPlacement();
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(main_activity);
 		String ui_placement = sharedPreferences.getString(PreferenceKeys.getUIPlacementPreferenceKey(), "ui_right");
-
+    	// we cache the preference_ui_placement to save having to check it in the draw() method
 		this.ui_placement_right = ui_placement.equals("ui_right");
 		if( MyDebug.LOG )
 			Log.d(TAG, "ui_placement: " + ui_placement);
-
-
+		// new code for orientation fixed to landscape	
+		// the display orientation should be locked to landscape, but how many degrees is that?
 	    int rotation = main_activity.getWindowManager().getDefaultDisplay().getRotation();
 	    int degrees = 0;
 	    switch (rotation) {
@@ -69,9 +70,9 @@ public class MainUI {
     		default:
     			break;
 	    }
-
-
-
+	    // getRotation is anti-clockwise, but current_orientation is clockwise, so we add rather than subtract
+	    // relative_orientation is clockwise from landscape-left
+    	//int relative_orientation = (current_orientation + 360 - degrees) % 360;
     	int relative_orientation = (current_orientation + degrees) % 360;
 		if( MyDebug.LOG ) {
 			Log.d(TAG, "    current_orientation = " + current_orientation);
@@ -101,7 +102,7 @@ public class MainUI {
 			align_parent_bottom = RelativeLayout.ALIGN_PARENT_TOP;
 		}
 		{
-
+			// we use a dummy button, so that the GUI buttons keep their positioning even if the Settings button is hidden (visibility set to View.GONE)
 			View view = main_activity.findViewById(R.id.gui_anchor);
 			RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
 			layoutParams.addRule(align_parent_left, 0);
@@ -158,16 +159,16 @@ public class MainUI {
 			view.setLayoutParams(layoutParams);
 			view.setRotation(ui_rotation);
 	
-			/*view = main_activity.findViewById(R.id.switch_video);
+			view = main_activity.findViewById(R.id.switch_video);
 			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
 			layoutParams.addRule(align_parent_top, RelativeLayout.TRUE);
 			layoutParams.addRule(align_parent_bottom, 0);
 			layoutParams.addRule(left_of, R.id.exposure);
 			layoutParams.addRule(right_of, 0);
 			view.setLayoutParams(layoutParams);
-			view.setRotation(ui_rotation);*/
+			view.setRotation(ui_rotation);
 	
-			/*view = main_activity.findViewById(R.id.switch_camera);
+			view = main_activity.findViewById(R.id.switch_camera);
 			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
 			layoutParams.addRule(align_parent_left, 0);
 			layoutParams.addRule(align_parent_right, 0);
@@ -176,7 +177,7 @@ public class MainUI {
 			layoutParams.addRule(left_of, R.id.switch_video);
 			layoutParams.addRule(right_of, 0);
 			view.setLayoutParams(layoutParams);
-			view.setRotation(ui_rotation);*/
+			view.setRotation(ui_rotation);
 	
 			view = main_activity.findViewById(R.id.audio_control);
 			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
@@ -184,7 +185,7 @@ public class MainUI {
 			layoutParams.addRule(align_parent_right, 0);
 			layoutParams.addRule(align_parent_top, RelativeLayout.TRUE);
 			layoutParams.addRule(align_parent_bottom, 0);
-			//layoutParams.addRule(left_of, R.id.switch_camera);
+			layoutParams.addRule(left_of, R.id.switch_camera);
 			layoutParams.addRule(right_of, 0);
 			view.setLayoutParams(layoutParams);
 			view.setRotation(ui_rotation);
@@ -221,7 +222,7 @@ public class MainUI {
 			layoutParams.addRule(align_parent_top, 0);
 			layoutParams.addRule(align_parent_bottom, RelativeLayout.TRUE);
 			view.setLayoutParams(layoutParams);
-			view.setRotation(180.0f);
+			view.setRotation(180.0f); // should always match the zoom_seekbar, so that zoom in and out are in the same directions
 	
 			view = main_activity.findViewById(R.id.zoom_seekbar);
 			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
@@ -243,7 +244,7 @@ public class MainUI {
 		}
 
 		{
-
+			// set seekbar info
 			int width_dp = 0;
 			if( ui_rotation == 0 || ui_rotation == 180 ) {
 				width_dp = 300;
@@ -253,8 +254,8 @@ public class MainUI {
 			}
 			int height_dp = 50;
 			final float scale = main_activity.getResources().getDisplayMetrics().density;
-			int width_pixels = (int) (width_dp * scale + 0.5f);
-			int height_pixels = (int) (height_dp * scale + 0.5f);
+			int width_pixels = (int) (width_dp * scale + 0.5f); // convert dps to pixels
+			int height_pixels = (int) (height_dp * scale + 0.5f); // convert dps to pixels
 
 			View view = main_activity.findViewById(R.id.exposure_seekbar);
 			view.setRotation(ui_rotation);
@@ -267,7 +268,7 @@ public class MainUI {
 			view.setRotation(ui_rotation);
 			view.setAlpha(0.5f);
 
-
+			// n.b., using left_of etc doesn't work properly when using rotation (as the amount of space reserved is based on the UI elements before being rotated)
 			if( ui_rotation == 0 ) {
 				view.setTranslationX(0);
 				view.setTranslationY(height_pixels);
@@ -320,7 +321,7 @@ public class MainUI {
 		{
 			View view = main_activity.findViewById(R.id.popup_container);
 			RelativeLayout.LayoutParams layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
-
+			//layoutParams.addRule(left_of, R.id.popup);
 			layoutParams.addRule(align_right, R.id.popup);
 			layoutParams.addRule(below, R.id.popup);
 			layoutParams.addRule(align_parent_bottom, RelativeLayout.TRUE);
@@ -329,7 +330,7 @@ public class MainUI {
 			view.setLayoutParams(layoutParams);
 
 			view.setRotation(ui_rotation);
-
+			// reset:
 			view.setTranslationX(0.0f);
 			view.setTranslationY(0.0f);
 			if( MyDebug.LOG ) {
@@ -368,7 +369,7 @@ public class MainUI {
     public void setTakePhotoIcon() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setTakePhotoIcon()");
-
+		// set icon for taking photos vs videos
 		ImageButton view = (ImageButton)main_activity.findViewById(R.id.take_photo);
 		if( main_activity.getPreview() != null ) {
 			int resource = 0;
@@ -387,7 +388,7 @@ public class MainUI {
 			}
 			view.setImageResource(resource);
 			view.setContentDescription( main_activity.getResources().getString(content_description) );
-			view.setTag(resource);
+			view.setTag(resource); // for testing
 		}
     }
 
@@ -396,13 +397,17 @@ public class MainUI {
     }
 
     public void onOrientationChanged(int orientation) {
-
+		/*if( MyDebug.LOG ) {
+			Log.d(TAG, "onOrientationChanged()");
+			Log.d(TAG, "orientation: " + orientation);
+			Log.d(TAG, "current_orientation: " + current_orientation);
+		}*/
 		if( orientation == OrientationEventListener.ORIENTATION_UNKNOWN )
 			return;
 		int diff = Math.abs(orientation - current_orientation);
 		if( diff > 180 )
 			diff = 360 - diff;
-
+		// only change orientation when sufficiently changed
 		if( diff > 60 ) {
 		    orientation = (orientation + 45) / 90 * 90;
 		    orientation = orientation % 360;
@@ -423,14 +428,14 @@ public class MainUI {
 		main_activity.runOnUiThread(new Runnable() {
 			public void run() {
 				SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(main_activity);
-
-
+				// if going into immersive mode, the we should set GONE the ones that are set GONE in showGUI(false)
+		    	//final int visibility_gone = immersive_mode ? View.GONE : View.VISIBLE;
 		    	final int visibility = immersive_mode ? View.GONE : View.VISIBLE;
 				if( MyDebug.LOG )
 					Log.d(TAG, "setImmersiveMode: set visibility: " + visibility);
-
-			    //View switchCameraButton = (View) main_activity.findViewById(R.id.switch_camera);
-			    //View switchVideoButton = (View) main_activity.findViewById(R.id.switch_video);
+		    	// n.b., don't hide share and trash buttons, as they require immediate user input for us to continue
+			    View switchCameraButton = (View) main_activity.findViewById(R.id.switch_camera);
+			    View switchVideoButton = (View) main_activity.findViewById(R.id.switch_video);
 			    View exposureButton = (View) main_activity.findViewById(R.id.exposure);
 			    View exposureLockButton = (View) main_activity.findViewById(R.id.exposure_lock);
 			    View audioControlButton = (View) main_activity.findViewById(R.id.audio_control);
@@ -439,9 +444,9 @@ public class MainUI {
 			    View settingsButton = (View) main_activity.findViewById(R.id.settings);
 			    View zoomControls = (View) main_activity.findViewById(R.id.zoom);
 			    View zoomSeekBar = (View) main_activity.findViewById(R.id.zoom_seekbar);
-			    /*if( main_activity.getPreview().getCameraControllerManager().getNumberOfCameras() > 1 )
-			    	switchCameraButton.setVisibility(visibility);*/
-		    	//switchVideoButton.setVisibility(visibility);
+			    if( main_activity.getPreview().getCameraControllerManager().getNumberOfCameras() > 1 )
+			    	switchCameraButton.setVisibility(visibility);
+		    	switchVideoButton.setVisibility(visibility);
 			    if( main_activity.supportsExposureButton() )
 			    	exposureButton.setVisibility(visibility);
 			    if( main_activity.getPreview().supportsExposureLock() )
@@ -466,7 +471,7 @@ public class MainUI {
     			    takePhotoButton.setVisibility(visibility);
         		}
 				if( !immersive_mode ) {
-
+					// make sure the GUI is set up as expected
 					showGUI(show_gui);
 				}
 			}
@@ -484,33 +489,33 @@ public class MainUI {
 		if( inImmersiveMode() )
 			return;
 		if( show && main_activity.usingKitKatImmersiveMode() ) {
-
+			// call to reset the timer
 			main_activity.initImmersiveMode();
 		}
 		main_activity.runOnUiThread(new Runnable() {
 			public void run() {
 		    	final int visibility = show ? View.VISIBLE : View.GONE;
-			    //View switchCameraButton = (View) main_activity.findViewById(R.id.switch_camera);
-			    //View switchVideoButton = (View) main_activity.findViewById(R.id.switch_video);
+			    View switchCameraButton = (View) main_activity.findViewById(R.id.switch_camera);
+			    View switchVideoButton = (View) main_activity.findViewById(R.id.switch_video);
 			    View exposureButton = (View) main_activity.findViewById(R.id.exposure);
 			    View exposureLockButton = (View) main_activity.findViewById(R.id.exposure_lock);
 			    View audioControlButton = (View) main_activity.findViewById(R.id.audio_control);
 			    View popupButton = (View) main_activity.findViewById(R.id.popup);
-			    /*if( main_activity.getPreview().getCameraControllerManager().getNumberOfCameras() > 1 )
-			    	switchCameraButton.setVisibility(visibility);*/
-			    /*if( !main_activity.getPreview().isVideo() )
-			    	switchVideoButton.setVisibility(visibility);*/
-			    if( main_activity.supportsExposureButton() && !main_activity.getPreview().isVideo() )
+			    if( main_activity.getPreview().getCameraControllerManager().getNumberOfCameras() > 1 )
+			    	switchCameraButton.setVisibility(visibility);
+			    if( !main_activity.getPreview().isVideo() )
+			    	switchVideoButton.setVisibility(visibility); // still allow switch video when recording video
+			    if( main_activity.supportsExposureButton() && !main_activity.getPreview().isVideo() ) // still allow exposure when recording video
 			    	exposureButton.setVisibility(visibility);
-			    if( main_activity.getPreview().supportsExposureLock() && !main_activity.getPreview().isVideo() )
+			    if( main_activity.getPreview().supportsExposureLock() && !main_activity.getPreview().isVideo() ) // still allow exposure lock when recording video
 			    	exposureLockButton.setVisibility(visibility);
 			    if( main_activity.hasAudioControl() )
 			    	audioControlButton.setVisibility(visibility);
 			    if( !show ) {
-			    	closePopup();
+			    	closePopup(); // we still allow the popup when recording video, but need to update the UI (so it only shows flash options), so easiest to just close
 			    }
 			    if( !main_activity.getPreview().isVideo() || !main_activity.getPreview().supportsFlash() )
-			    	popupButton.setVisibility(visibility);
+			    	popupButton.setVisibility(visibility); // still allow popup in order to change flash mode when recording video
 			}
 		});
     }
@@ -545,7 +550,7 @@ public class MainUI {
 			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(main_activity);
 			String value = sharedPreferences.getString(PreferenceKeys.getISOPreferenceKey(), main_activity.getPreview().getCameraController().getDefaultISO());
 			if( main_activity.getPreview().usingCamera2API() && !value.equals(main_activity.getPreview().getCameraController().getDefaultISO()) ) {
-
+				// with Camera2 API, when using non-default ISO we instead show sliders for ISO range and exposure time
 				if( main_activity.getPreview().supportsISORange()) {
 					iso_seek_bar.setVisibility(View.VISIBLE);
 					if( main_activity.getPreview().supportsExposureTime() ) {
@@ -634,9 +639,17 @@ public class MainUI {
 			ViewGroup popup_container = (ViewGroup)main_activity.findViewById(R.id.popup_container);
 			popup_container.removeAllViews();
 			popup_view_is_open = false;
-
+			/* Not destroying the popup doesn't really gain any performance.
+			 * Also there are still outstanding bugs to fix if we wanted to do this:
+			 *   - Not resetting the popup menu when switching between photo and video mode. See test testVideoPopup().
+			 *   - When changing options like flash/focus, the new option isn't selected when reopening the popup menu. See test
+			 *     testPopup().
+			 *   - Changing settings potentially means we have to recreate the popup, so the natural place to do this is in
+			 *     MainActivity.updateForSettings(), but doing so makes the popup close when checking photo or video resolutions!
+			 *     See test testSwitchResolution().
+			 */
 			destroyPopup();
-			main_activity.initImmersiveMode();
+			main_activity.initImmersiveMode(); // to reset the timer when closing the popup
 		}
     }
 
@@ -667,13 +680,13 @@ public class MainUI {
 			Log.d(TAG, "open popup");
 
 		clearSeekBar();
-		main_activity.getPreview().cancelTimer();
+		main_activity.getPreview().cancelTimer(); // best to cancel any timer, in case we take a photo while settings window is open, or when changing settings
 		main_activity.stopAudioListeners();
 
     	final long time_s = System.currentTimeMillis();
 
     	{
-
+			// prevent popup being transparent
 			popup_container.setBackgroundColor(Color.BLACK);
 			popup_container.setAlpha(0.9f);
 		}
@@ -690,10 +703,10 @@ public class MainUI {
 		popup_container.addView(popup_view);
 		popup_view_is_open = true;
 		
-
-
-
-
+        // need to call layoutUI to make sure the new popup is oriented correctly
+		// but need to do after the layout has been done, so we have a valid width/height to use
+		// n.b., even though we only need the portion of layoutUI for the popup container, there
+		// doesn't seem to be any performance benefit in only calling that part
 		popup_container.getViewTreeObserver().addOnGlobalLayoutListener( 
 			new OnGlobalLayoutListener() {
 				@SuppressWarnings("deprecation")
@@ -707,7 +720,7 @@ public class MainUI {
 					layoutUI();
 					if( MyDebug.LOG )
 						Log.d(TAG, "time after layoutUI: " + (System.currentTimeMillis() - time_s));
-
+		    		// stop listening - only want to call this once!
 		            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.ICE_CREAM_SANDWICH_MR1) {
 		            	popup_container.getViewTreeObserver().removeOnGlobalLayoutListener(this);
 		            } else {
@@ -728,7 +741,7 @@ public class MainUI {
 			Log.d(TAG, "time to create popup: " + (System.currentTimeMillis() - time_s));
     }
 
-
+    // for testing
     public View getPopupButton(String key) {
     	return popup_view.getPopupButton(key);
     }

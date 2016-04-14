@@ -17,7 +17,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
-
+/** Provides support for the surface used for the preview, using a SurfaceView.
+ */
 public class MySurfaceView extends SurfaceView implements CameraSurface {
 	private static final String TAG = "MySurfaceView";
 
@@ -33,11 +34,11 @@ public class MySurfaceView extends SurfaceView implements CameraSurface {
 			Log.d(TAG, "new MySurfaceView");
 		}
 
-
-
+		// Install a SurfaceHolder.Callback so we get notified when the
+		// underlying surface is created and destroyed.
 		getHolder().addCallback(preview);
-
-		getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+        // deprecated setting, but required on Android versions prior to 3.0
+		getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS); // deprecated
 	}
 	
 	@Override

@@ -15,7 +15,8 @@ import android.view.MotionEvent;
 import android.view.TextureView;
 import android.view.View;
 
-
+/** Provides support for the surface used for the preview, using a TextureView.
+ */
 public class MyTextureView extends TextureView implements CameraSurface {
 	private static final String TAG = "MyTextureView";
 
@@ -29,8 +30,8 @@ public class MyTextureView extends TextureView implements CameraSurface {
 			Log.d(TAG, "new MyTextureView");
 		}
 
-
-
+		// Install a TextureView.SurfaceTextureListener so we get notified when the
+		// underlying surface is created and destroyed.
 		this.setSurfaceTextureListener(preview);
 	}
 	
@@ -55,7 +56,7 @@ public class MyTextureView extends TextureView implements CameraSurface {
 
 	@Override
 	public void setVideoRecorder(MediaRecorder video_recorder) {
-
+		// should be no need to do anything (see documentation for MediaRecorder.setPreviewDisplay())
 	}
 
 	@SuppressLint("ClickableViewAccessibility")
@@ -64,7 +65,10 @@ public class MyTextureView extends TextureView implements CameraSurface {
 		return preview.touchEvent(event);
     }
 
-
+	/*@Override
+	public void onDraw(Canvas canvas) {
+		preview.draw(canvas);
+	}*/
 
     @Override
     protected void onMeasure(int widthSpec, int heightSpec) {

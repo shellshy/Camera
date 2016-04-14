@@ -1,10 +1,11 @@
 package com.glacier.camera;
 
-
+/** Stores all of the string keys used for SharedPreferences.
+ */
 public class PreferenceKeys {
-
+    // must be static, to safely call from other Activities
 	
-
+	// arguably the static methods here that don't receive an argument could just be static final strings? Though we may want to change some of them to be cameraId-specific in future
 
     public static String getFirstTimePreferenceKey() {
         return "done_first_time";

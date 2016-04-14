@@ -18,7 +18,9 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
-
+/** Provides support using Android's original camera API
+ *  android.hardware.Camera.
+ */
 @SuppressWarnings("deprecation")
 public class CameraController1 extends CameraController {
 	private static final String TAG = "CameraController1";
@@ -42,9 +44,9 @@ public class CameraController1 extends CameraController {
 			throw new CameraControllerException();
 		}
 		if( camera == null ) {
-
-
-
+			// Although the documentation says Camera.open() should throw a RuntimeException, it seems that it some cases it can return null
+			// I've seen this in some crashes reported in Google Play; also see:
+			// http://stackoverflow.com/questions/12054022/camera-open-returns-null			
 			if( MyDebug.LOG )
 				Log.e(TAG, "camera.open returned null");
 			throw new CameraControllerException();
@@ -53,15 +55,22 @@ public class CameraController1 extends CameraController {
 			Camera.getCameraInfo(cameraId, camera_info);
 		}
 		catch(RuntimeException e) {
-
-
+			// Had reported RuntimeExceptions from Google Play
+			// also see http://stackoverflow.com/questions/22383708/java-lang-runtimeexception-fail-to-get-camera-info
 			if( MyDebug.LOG )
 				Log.e(TAG, "failed to get camera info");
 			e.printStackTrace();
 			this.release();
 			throw new CameraControllerException();
 		}
-
+		/*{
+			// TEST cam_mode workaround from http://stackoverflow.com/questions/7225571/camcorderprofile-quality-high-resolution-produces-green-flickering-video
+			if( MyDebug.LOG )
+				Log.d(TAG, "setting cam_mode workaround");
+	    	Camera.Parameters parameters = this.getParameters();
+	    	parameters.set("cam_mode", 1);
+	    	setCameraParameters(parameters);
+		}*/
 		
 		camera.setErrorCallback(new CameraErrorCallback());
 	}
@@ -69,7 +78,7 @@ public class CameraController1 extends CameraController {
 	private static class CameraErrorCallback implements Camera.ErrorCallback {
 		@Override
 		public void onError(int error, Camera camera) {
-
+			// n.b., as this is potentially serious error, we always log even if MyDebug.LOG is false
 			Log.e(TAG, "camera onError: " + error);
 			if( error == android.hardware.Camera.CAMERA_ERROR_SERVER_DIED ) {
 				Log.e(TAG, "    CAMERA_ERROR_SERVER_DIED");
@@ -102,7 +111,7 @@ public class CameraController1 extends CameraController {
     			Log.d(TAG, "done");
 	    }
 	    catch(RuntimeException e) {
-
+	    	// just in case something has gone wrong
     		if( MyDebug.LOG )
     			Log.d(TAG, "failed to set parameters");
     		e.printStackTrace();
@@ -115,7 +124,7 @@ public class CameraController1 extends CameraController {
 			Log.d(TAG, "convertFlashModesToValues()");
 		List<String> output_modes = new Vector<String>();
 		if( supported_flash_modes != null ) {
-
+			// also resort as well as converting
 			if( supported_flash_modes.contains(Camera.Parameters.FLASH_MODE_OFF) ) {
 				output_modes.add("flash_off");
 				if( MyDebug.LOG )
@@ -150,7 +159,7 @@ public class CameraController1 extends CameraController {
 			Log.d(TAG, "convertFocusModesToValues()");
 		List<String> output_modes = new Vector<String>();
 		if( supported_focus_modes != null ) {
-
+			// also resort as well as converting
 			if( supported_focus_modes.contains(Camera.Parameters.FOCUS_MODE_AUTO) ) {
 				output_modes.add("focus_mode_auto");
 				if( MyDebug.LOG ) {
@@ -214,8 +223,8 @@ public class CameraController1 extends CameraController {
 				camera_features.zoom_ratios = parameters.getZoomRatios();
 			}
 			catch(NumberFormatException e) {
-
-
+        		// crash java.lang.NumberFormatException: Invalid int: " 500" reported in v1.4 on device "es209ra", Android 4.1, 3 Jan 2014
+				// this is from java.lang.Integer.invalidInt(Integer.java:138) - unclear if this is a bug in Open Camera, all we can do for now is catch it
 	    		if( MyDebug.LOG )
 	    			Log.e(TAG, "NumberFormatException in getZoomRatios()");
 				e.printStackTrace();
@@ -227,20 +236,20 @@ public class CameraController1 extends CameraController {
 
 		camera_features.supports_face_detection = parameters.getMaxNumDetectedFaces() > 0;
 
-
+		// get available sizes
 		List<Camera.Size> camera_picture_sizes = parameters.getSupportedPictureSizes();
 		camera_features.picture_sizes = new ArrayList<CameraController.Size>();
-
+		//camera_features.picture_sizes.add(new CameraController.Size(1920, 1080)); // test
 		for(Camera.Size camera_size : camera_picture_sizes) {
 			camera_features.picture_sizes.add(new CameraController.Size(camera_size.width, camera_size.height));
 		}
 
+        //camera_features.supported_flash_modes = parameters.getSupportedFlashModes(); // Android format
+        List<String> supported_flash_modes = parameters.getSupportedFlashModes(); // Android format
+		camera_features.supported_flash_values = convertFlashModesToValues(supported_flash_modes); // convert to our format (also resorts)
 
-        List<String> supported_flash_modes = parameters.getSupportedFlashModes();
-		camera_features.supported_flash_values = convertFlashModesToValues(supported_flash_modes);
-
-        List<String> supported_focus_modes = parameters.getSupportedFocusModes();
-		camera_features.supported_focus_values = convertFocusModesToValues(supported_focus_modes);
+        List<String> supported_focus_modes = parameters.getSupportedFocusModes(); // Android format
+		camera_features.supported_focus_values = convertFocusModesToValues(supported_focus_modes); // convert to our format (also resorts)
 		camera_features.max_num_focus_areas = parameters.getMaxNumFocusAreas();
 
         camera_features.is_exposure_lock_supported = parameters.isAutoExposureLockSupported();
@@ -253,22 +262,22 @@ public class CameraController1 extends CameraController {
         	camera_features.exposure_step = parameters.getExposureCompensationStep();
         }
         catch(Exception e) {
-
+        	// received a NullPointerException from StringToReal.parseFloat() beneath getExposureCompensationStep() on Google Play!
     		if( MyDebug.LOG )
     			Log.e(TAG, "exception from getExposureCompensationStep()");
         	e.printStackTrace();
-        	camera_features.exposure_step = 1.0f/3.0f;
+        	camera_features.exposure_step = 1.0f/3.0f; // make up a typical example
         }
 
 		List<Camera.Size> camera_video_sizes = parameters.getSupportedVideoSizes();
     	if( camera_video_sizes == null ) {
-
+    		// if null, we should use the preview sizes - see http://stackoverflow.com/questions/14263521/android-getsupportedvideosizes-allways-returns-null
     		if( MyDebug.LOG )
     			Log.d(TAG, "take video_sizes from preview sizes");
     		camera_video_sizes = parameters.getSupportedPreviewSizes();
     	}
 		camera_features.video_sizes = new ArrayList<CameraController.Size>();
-
+		//camera_features.video_sizes.add(new CameraController.Size(1920, 1080)); // test
 		for(Camera.Size camera_size : camera_video_sizes) {
 			camera_features.video_sizes.add(new CameraController.Size(camera_size.width, camera_size.height));
 		}
@@ -283,7 +292,7 @@ public class CameraController1 extends CameraController {
 			Log.d(TAG, "camera parameters: " + parameters.flatten());
 
 		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 ) {
-
+        	// Camera.canDisableShutterSound requires JELLY_BEAN_MR1 or greater
         	camera_features.can_disable_shutter_sound = camera_info.canDisableShutterSound;
         }
         else {
@@ -294,20 +303,24 @@ public class CameraController1 extends CameraController {
 	}
 	
 	public long getDefaultExposureTime() {
-
+		// not supported for CameraController1
 		return 0l;
 	}
 
-
-
-
-
-
+	// important, from docs:
+	// "Changing scene mode may override other parameters (such as flash mode, focus mode, white balance).
+	// For example, suppose originally flash mode is on and supported flash modes are on/off. In night
+	// scene mode, both flash mode and supported flash mode may be changed to off. After setting scene
+	// mode, applications should call getParameters to know if some parameters are changed."
 	public SupportedValues setSceneMode(String value) {
 		String default_value = getDefaultSceneMode();
     	Camera.Parameters parameters = this.getParameters();
 		List<String> values = parameters.getSupportedSceneModes();
-
+		/*{
+			// test
+			values = new ArrayList<String>();
+			values.add("auto");
+		}*/
 		SupportedValues supported_values = checkModeIsSupported(values, value, default_value);
 		if( supported_values != null ) {
 			if( !parameters.getSceneMode().equals(supported_values.selected_value) ) {
@@ -365,14 +378,14 @@ public class CameraController1 extends CameraController {
 	public SupportedValues setISO(String value) {
 		String default_value = getDefaultISO();
     	Camera.Parameters parameters = this.getParameters();
-
+		// get available isos - no standard value for this, see http://stackoverflow.com/questions/2978095/android-camera-api-iso-setting
 		String iso_values = parameters.get("iso-values");
 		if( iso_values == null ) {
-			iso_values = parameters.get("iso-mode-values");
+			iso_values = parameters.get("iso-mode-values"); // Galaxy Nexus
 			if( iso_values == null ) {
-				iso_values = parameters.get("iso-speed-values");
+				iso_values = parameters.get("iso-speed-values"); // Micromax A101
 				if( iso_values == null )
-					iso_values = parameters.get("nv-picture-iso-values");
+					iso_values = parameters.get("nv-picture-iso-values"); // LG dual P990
 			}
 		}
 		List<String> values = null;
@@ -390,17 +403,43 @@ public class CameraController1 extends CameraController {
 
 		iso_key = "iso";
 		if( parameters.get(iso_key) == null ) {
-			iso_key = "iso-speed";
+			iso_key = "iso-speed"; // Micromax A101
 			if( parameters.get(iso_key) == null ) {
-				iso_key = "nv-picture-iso";
+				iso_key = "nv-picture-iso"; // LG dual P990
 				if( parameters.get(iso_key) == null )
-					iso_key = null;
+					iso_key = null; // not supported
 			}
 		}
-
+		/*values = new ArrayList<String>();
+		//values.add("auto");
+		//values.add("ISO_HJR");
+		values.add("ISO50");
+		values.add("ISO64");
+		values.add("ISO80");
+		values.add("ISO100");
+		values.add("ISO125");
+		values.add("ISO160");
+		values.add("ISO200");
+		values.add("ISO250");
+		values.add("ISO320");
+		values.add("ISO400");
+		values.add("ISO500");
+		values.add("ISO640");
+		values.add("ISO800");
+		values.add("ISO1000");
+		values.add("ISO1250");
+		values.add("ISO1600");
+		values.add("ISO2000");
+		values.add("ISO2500");
+		values.add("ISO3200");
+		values.add("auto");
+		//values.add("400");
+		//values.add("800");
+		//values.add("1600");
+		iso_key = "iso";*/
 		if( iso_key != null ){
 			if( values == null ) {
-
+				// set a default for some devices which have an iso_key, but don't give a list of supported ISOs
 				values = new ArrayList<String>();
 				values.add("auto");
 				values.add("100");
@@ -430,25 +469,25 @@ public class CameraController1 extends CameraController {
 
 	@Override
 	public int getISO() {
-
+		// not supported for CameraController1
 		return 0;
 	}
 
 	@Override
 	public boolean setISO(int iso) {
-
+		// not supported for CameraController1
 		return false;
 	}
 
 	@Override
 	public long getExposureTime() {
-
+		// not supported for CameraController1
 		return 0l;
 	}
 
 	@Override
 	public boolean setExposureTime(long exposure_time) {
-
+		// not supported for CameraController1
 		return false;
 	}
 
@@ -525,7 +564,7 @@ public class CameraController1 extends CameraController {
 		return parameters.getExposureCompensation();
 	}
 	
-
+	// Returns whether exposure was modified
 	public boolean setExposureCompensation(int new_exposure) {
 		Camera.Parameters parameters = this.getParameters();
 		int current_exposure = parameters.getExposureCompensation();
@@ -554,7 +593,10 @@ public class CameraController1 extends CameraController {
 			return fps_ranges;
 		}
 		catch(StringIndexOutOfBoundsException e) {
-
+			/* Have had reports of StringIndexOutOfBoundsException on Google Play on Sony Xperia M devices
+				at android.hardware.Camera$Parameters.splitRange(Camera.java:4098)
+				at android.hardware.Camera$Parameters.getSupportedPreviewFpsRange(Camera.java:2799)
+				*/
 			e.printStackTrace();
 	    	if( MyDebug.LOG ) {
 	    		Log.e(TAG, "getSupportedPreviewFpsRange() gave StringIndexOutOfBoundsException");
@@ -595,12 +637,12 @@ public class CameraController1 extends CameraController {
 	}
 	
 	private String convertFocusModeToValue(String focus_mode) {
-
+		// focus_mode may be null on some devices; we return ""
 		if( MyDebug.LOG )
 			Log.d(TAG, "convertFocusModeToValue: " + focus_mode);
 		String focus_value = "";
 		if( focus_mode == null ) {
-
+			// ignore, leave focus_value at null
 		}
 		else if( focus_mode.equals(Camera.Parameters.FOCUS_MODE_AUTO) ) {
     		focus_value = "focus_mode_auto";
@@ -628,22 +670,22 @@ public class CameraController1 extends CameraController {
 	
 	@Override
 	public String getFocusValue() {
-
+		// returns "" if Parameters.getFocusMode() returns null
 		Camera.Parameters parameters = this.getParameters();
 		String focus_mode = parameters.getFocusMode();
-
+		// getFocusMode() is documented as never returning null, however I've had null pointer exceptions reported in Google Play
 		return convertFocusModeToValue(focus_mode);
 	}
 
 	@Override
 	public float getFocusDistance() {
-
+		// not supported for CameraController1!
 		return 0.0f;
 	}
 
 	@Override
 	public boolean setFocusDistance(float focus_distance) {
-
+		// not supported for CameraController1!
 		return false;
 	}
 
@@ -672,23 +714,23 @@ public class CameraController1 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setFlashValue: " + flash_value);
 		if( parameters.getFlashMode() == null )
-			return;
+			return; // flash mode not supported
 		final String flash_mode = convertFlashValueToMode(flash_value);
     	if( flash_mode.length() > 0 && !flash_mode.equals(parameters.getFlashMode()) ) {
     		if( parameters.getFlashMode().equals(Camera.Parameters.FLASH_MODE_TORCH) && !flash_mode.equals(Camera.Parameters.FLASH_MODE_OFF) ) {
-
+    			// workaround for bug on Nexus 5 and Nexus 6 where torch doesn't switch off until we set FLASH_MODE_OFF
     			if( MyDebug.LOG )
     				Log.d(TAG, "first turn torch off");
         		parameters.setFlashMode(Camera.Parameters.FLASH_MODE_OFF);
             	setCameraParameters(parameters);
-
+            	// need to set the correct flash mode after a delay
             	Handler handler = new Handler();
             	handler.postDelayed(new Runnable(){
             		@Override
             	    public void run(){
             			if( MyDebug.LOG )
             				Log.d(TAG, "now set actual flash mode after turning torch off");
-            			if( camera != null ) {
+            			if( camera != null ) { // make sure camera wasn't released in the meantime (has a Google Play crash as a result of this)
 	            			Camera.Parameters parameters = getParameters();
 	                		parameters.setFlashMode(flash_mode);
 	                    	setCameraParameters(parameters);
@@ -704,12 +746,12 @@ public class CameraController1 extends CameraController {
 	}
 	
 	private String convertFlashModeToValue(String flash_mode) {
-
+		// flash_mode may be null, meaning flash isn't supported; we return ""
 		if( MyDebug.LOG )
 			Log.d(TAG, "convertFlashModeToValue: " + flash_mode);
 		String flash_value = "";
 		if( flash_mode == null ) {
-
+			// ignore, leave flash_value at null
 		}
 		else if( flash_mode.equals(Camera.Parameters.FLASH_MODE_OFF) ) {
     		flash_value = "flash_off";
@@ -730,9 +772,9 @@ public class CameraController1 extends CameraController {
 	}
 	
 	public String getFlashValue() {
-
+		// returns "" if flash isn't supported
 		Camera.Parameters parameters = this.getParameters();
-		String flash_mode = parameters.getFlashMode();
+		String flash_mode = parameters.getFlashMode(); // will be null if flash mode not supported
 		return convertFlashModeToValue(flash_mode);
 	}
 	
@@ -740,16 +782,16 @@ public class CameraController1 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setRecordingHint: " + hint);
 		Camera.Parameters parameters = this.getParameters();
-
-
-
-
-
-
-
-
+		// Calling setParameters here with continuous video focus mode causes preview to not restart after taking a photo on Galaxy Nexus?! (fine on my Nexus 7).
+		// The issue seems to specifically be with setParameters (i.e., the problem occurs even if we don't setRecordingHint).
+		// In addition, I had a report of a bug on HTC Desire X, Android 4.0.4 where the saved video was corrupted.
+		// This worked fine in 1.7, then not in 1.8 and 1.9, then was fixed again in 1.10
+		// The only thing in common to 1.7->1.8 and 1.9-1.10, that seems relevant, was adding this code to setRecordingHint() and setParameters() (unclear which would have been the problem),
+		// so we should be very careful about enabling this code again!
+		// Update for v1.23: the bug with Galaxy Nexus has come back (see comments in Preview.setPreviewFps()) and is now unavoidable,
+		// but I've still kept this check here - if nothing else, because it apparently caused video recording problems on other devices too.
 		String focus_mode = parameters.getFocusMode();
-
+		// getFocusMode() is documented as never returning null, however I've had null pointer exceptions reported in Google Play
         if( focus_mode != null && !focus_mode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO) ) {
 			parameters.setRecordingHint(hint);
         	setCameraParameters(parameters);
@@ -778,19 +820,19 @@ public class CameraController1 extends CameraController {
 	public void setLocationInfo(Location location) {
         Camera.Parameters parameters = this.getParameters();
         parameters.removeGpsData();
-        parameters.setGpsTimestamp(System.currentTimeMillis() / 1000);
+        parameters.setGpsTimestamp(System.currentTimeMillis() / 1000); // initialise to a value (from Android camera source)
         parameters.setGpsLatitude(location.getLatitude());
         parameters.setGpsLongitude(location.getLongitude());
-        parameters.setGpsProcessingMethod(location.getProvider());
+        parameters.setGpsProcessingMethod(location.getProvider()); // from http://boundarydevices.com/how-to-write-an-android-camera-app/
         if( location.hasAltitude() ) {
             parameters.setGpsAltitude(location.getAltitude());
         }
         else {
-
-
+        	// Android camera source claims we need to fake one if not present
+        	// and indeed, this is needed to fix crash on Nexus 7
             parameters.setGpsAltitude(0);
         }
-        if( location.getTime() != 0 ) {
+        if( location.getTime() != 0 ) { // from Android camera source
         	parameters.setGpsTimestamp(location.getTime() / 1000);
         }
     	setCameraParameters(parameters);
@@ -816,11 +858,11 @@ public class CameraController1 extends CameraController {
 		}
         Camera.Parameters parameters = this.getParameters();
 		String focus_mode = parameters.getFocusMode();
-
+		// getFocusMode() is documented as never returning null, however I've had null pointer exceptions reported in Google Play
         if( parameters.getMaxNumFocusAreas() != 0 && focus_mode != null && ( focus_mode.equals(Camera.Parameters.FOCUS_MODE_AUTO) || focus_mode.equals(Camera.Parameters.FOCUS_MODE_MACRO) || focus_mode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE) || focus_mode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO) ) ) {
 		    parameters.setFocusAreas(camera_areas);
 
-
+		    // also set metering areas
 		    if( parameters.getMaxNumMeteringAreas() == 0 ) {
         		if( MyDebug.LOG )
         			Log.d(TAG, "metering areas not supported");
@@ -884,8 +926,8 @@ public class CameraController1 extends CameraController {
 	public boolean supportsAutoFocus() {
         Camera.Parameters parameters = this.getParameters();
 		String focus_mode = parameters.getFocusMode();
-
-
+		// getFocusMode() is documented as never returning null, however I've had null pointer exceptions reported in Google Play from the below line (v1.7),
+		// on Galaxy Tab 10.1 (GT-P7500), Android 4.0.3 - 4.0.4; HTC EVO 3D X515m (shooteru), Android 4.0.3 - 4.0.4
         if( focus_mode != null && ( focus_mode.equals(Camera.Parameters.FOCUS_MODE_AUTO) || focus_mode.equals(Camera.Parameters.FOCUS_MODE_MACRO) ) ) {
         	return true;
         }
@@ -895,7 +937,7 @@ public class CameraController1 extends CameraController {
 	public boolean focusIsVideo() {
 		Camera.Parameters parameters = this.getParameters();
 		String current_focus_mode = parameters.getFocusMode();
-
+		// getFocusMode() is documented as never returning null, however I've had null pointer exceptions reported in Google Play
 		boolean focus_is_video = current_focus_mode != null && current_focus_mode.equals(Camera.Parameters.FOCUS_MODE_CONTINUOUS_VIDEO);
 		if( MyDebug.LOG ) {
 			Log.d(TAG, "current_focus_mode: " + current_focus_mode);
@@ -966,7 +1008,7 @@ public class CameraController1 extends CameraController {
 		camera.stopPreview();
 	}
 	
-
+	// returns false if RuntimeException thrown (may include if face-detection already started)
 	public boolean startFaceDetection() {
 	    try {
 			camera.startFaceDetection();
@@ -1004,12 +1046,12 @@ public class CameraController1 extends CameraController {
         	camera.autoFocus(camera_cb);
         }
 		catch(RuntimeException e) {
-
-
+			// just in case? We got a RuntimeException report here from 1 user on Google Play:
+			// 21 Dec 2013, Xperia Go, Android 4.1
 			if( MyDebug.LOG )
 				Log.e(TAG, "runtime exception from autoFocus");
 			e.printStackTrace();
-
+			// should call the callback, so the application isn't left waiting (e.g., when we autofocus before trying to take a photo)
 			cb.onAutoFocus(false);
 		}
 	}
@@ -1019,7 +1061,7 @@ public class CameraController1 extends CameraController {
 			camera.cancelAutoFocus();
 		}
 		catch(RuntimeException e) {
-
+			// had a report of crash on some devices, see comment at https://sourceforge.net/p/opencamera/tickets/4/ made on 20140520
 			if( MyDebug.LOG )
 				Log.d(TAG, "cancelAutoFocus() failed");
     		e.printStackTrace();
@@ -1032,7 +1074,7 @@ public class CameraController1 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setContinuousFocusMoveCallback");
 		if( Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN ) {
-
+			// setAutoFocusMoveCallback() requires JELLY_BEAN
 			if( cb != null ) {
 				camera.setAutoFocusMoveCallback(new AutoFocusMoveCallback() {
 					@Override
@@ -1054,7 +1096,7 @@ public class CameraController1 extends CameraController {
 	}
 
 	private static class TakePictureShutterCallback implements Camera.ShutterCallback {
-
+		// don't do anything here, but we need to implement the callback to get the shutter sound (at least on Galaxy Nexus and Nexus 7)
 		@Override
         public void onShutter() {
 			if( MyDebug.LOG )
@@ -1066,13 +1108,13 @@ public class CameraController1 extends CameraController {
     	Camera.ShutterCallback shutter = new TakePictureShutterCallback();
         Camera.PictureCallback camera_raw = raw == null ? null : new Camera.PictureCallback() {
     	    public void onPictureTaken(byte[] data, Camera cam) {
-
+    	    	// n.b., this is automatically run in a different thread
     	    	raw.onPictureTaken(data);
     	    }
         };
         Camera.PictureCallback camera_jpeg = jpeg == null ? null : new Camera.PictureCallback() {
     	    public void onPictureTaken(byte[] data, Camera cam) {
-
+    	    	// n.b., this is automatically run in a different thread
     	    	jpeg.onPictureTaken(data);
     	    }
         };
@@ -1081,7 +1123,7 @@ public class CameraController1 extends CameraController {
         	camera.takePicture(shutter, camera_raw, camera_jpeg);
         }
 		catch(RuntimeException e) {
-
+			// just in case? We got a RuntimeException report here from 1 user on Google Play; I also encountered it myself once of Galaxy Nexus when starting up
 			if( MyDebug.LOG )
 				Log.e(TAG, "runtime exception from takePicture");
 			e.printStackTrace();
@@ -1093,7 +1135,7 @@ public class CameraController1 extends CameraController {
 	    int result = 0;
 	    if( camera_info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT ) {
 	        result = (camera_info.orientation + degrees) % 360;
-	        result = (360 - result) % 360;
+	        result = (360 - result) % 360;  // compensate the mirror
 	    }
 	    else {
 	        result = (camera_info.orientation - degrees + 360) % 360;
@@ -1120,7 +1162,7 @@ public class CameraController1 extends CameraController {
 	}
 	
 	public void unlock() {
-		this.stopPreview();
+		this.stopPreview(); // although not documented, we need to stop preview to prevent device freeze or video errors shortly after video recording starts on some devices (e.g., device freeze on Samsung Galaxy S2 - I could reproduce this on Samsung RTL; also video recording fails and preview becomes corrupted on Galaxy S3 variant "SGH-I747-US2"); also see http://stackoverflow.com/questions/4244999/problem-with-video-recording-after-auto-focus-in-android
 		camera.unlock();
 	}
 	
@@ -1131,7 +1173,7 @@ public class CameraController1 extends CameraController {
 	
 	@Override
 	public void initVideoRecorderPostPrepare(MediaRecorder video_recorder) throws CameraControllerException {
-
+		// no further actions necessary
 	}
 	
 	@Override
@@ -1141,7 +1183,7 @@ public class CameraController1 extends CameraController {
 			string = this.getParameters().flatten();
 		}
         catch(Exception e) {
-
+        	// received a StringIndexOutOfBoundsException from beneath getParameters().flatten() on Google Play!
     		if( MyDebug.LOG )
     			Log.e(TAG, "exception from getParameters().flatten()");
         	e.printStackTrace();

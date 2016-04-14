@@ -5,7 +5,9 @@ import com.glacier.camera.MyDebug;
 import android.hardware.Camera;
 import android.util.Log;
 
-
+/** Provides support using Android's original camera API
+ *  android.hardware.Camera.
+ */
 @SuppressWarnings("deprecation")
 public class CameraControllerManager1 extends CameraControllerManager {
 	private static final String TAG = "CameraControllerManager1";
@@ -20,8 +22,8 @@ public class CameraControllerManager1 extends CameraControllerManager {
 			return (camera_info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT);
 	    }
 	    catch(RuntimeException e) {
-
-
+	    	// Had a report of this crashing on Galaxy Nexus - may be device specific issue, see http://stackoverflow.com/questions/22383708/java-lang-runtimeexception-fail-to-get-camera-info
+	    	// but good to catch it anyway
     		if( MyDebug.LOG )
     			Log.d(TAG, "failed to set parameters");
 	    	e.printStackTrace();

@@ -5,7 +5,8 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
-
+/** Sets up a listener to listen for noise level.
+ */
 public class AudioListener {
 	private static final String TAG = "AudioListener";
 	private boolean is_running = true;
@@ -24,7 +25,7 @@ public class AudioListener {
 		int audio_format = AudioFormat.ENCODING_PCM_16BIT;
 		try {
 			buffer_size = AudioRecord.getMinBufferSize(sample_rate, channel_config, audio_format);
-
+			//buffer_size = -1; // test
 			if( MyDebug.LOG )
 				Log.d(TAG, "buffer_size: " + buffer_size);
 			if( buffer_size <= 0 ) {
@@ -52,10 +53,17 @@ public class AudioListener {
 		Thread thread = new Thread() {
 			@Override
 			public void run() {
-
+				/*int sample_delay = (1000 * buffer_size) / sample_rate;
+				if( MyDebug.LOG )
+					Log.e(TAG, "sample_delay: " + sample_delay);*/
 
 				while( is_running ) {
-
+					/*try{
+						Thread.sleep(sample_delay);
+					}
+					catch(InterruptedException e) {
+						e.printStackTrace();
+					}*/
 					try {
 					    int n_read = ar.read(buffer, 0, buffer_size);
 					    if( n_read > 0 ) {
@@ -67,7 +75,11 @@ public class AudioListener {
 						    	max_noise = Math.max(max_noise, value);
 						    }
 						    average_noise /= n_read;
-
+							/*if( MyDebug.LOG ) {
+								Log.d(TAG, "n_read: " + n_read);
+								Log.d(TAG, "average noise: " + average_noise);
+								Log.d(TAG, "max noise: " + max_noise);
+							}*/
 							cb.onAudio(average_noise);
 					    }
 					    else {

@@ -40,7 +40,9 @@ import android.view.Display;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 
-
+/** Provides support using Android 5's Camera 2 API
+ *  android.hardware.camera2.*.
+ */
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class CameraController2 extends CameraController {
 	private static final String TAG = "CameraController2";
@@ -59,7 +61,7 @@ public class CameraController2 extends CameraController {
 	private ImageReader imageReader = null;
 	private PictureCallback jpeg_cb = null;
 	private ErrorCallback take_picture_error_cb = null;
-
+	//private ImageReader previewImageReader = null;
 	private SurfaceTexture texture = null;
 	private Surface surface_texture = null;
 	private HandlerThread thread = null; 
@@ -73,8 +75,8 @@ public class CameraController2 extends CameraController {
 	
 	private static final int STATE_NORMAL = 0;
 	private static final int STATE_WAITING_AUTOFOCUS = 1;
-
-
+	//private static final int STATE_WAITING_PRECAPTURE_START = 2;
+	//private static final int STATE_WAITING_PRECAPTURE_DONE = 3;
 	private int state = STATE_NORMAL;
 	
 	private MediaActionSound media_action_sound = new MediaActionSound();
@@ -92,41 +94,41 @@ public class CameraController2 extends CameraController {
 	}
 	
 	private class CameraSettings {
-
+		// keys that we need to store, to pass to the stillBuilder, but doesn't need to be passed to previewBuilder (should set sensible defaults)
 		private int rotation = 0;
 		private Location location = null;
 		private byte jpeg_quality = 90;
 
-
+		// keys that we have passed to the previewBuilder, that we need to store to also pass to the stillBuilder (should set sensible defaults, or use a has_ boolean if we don't want to set a default)
 		private int scene_mode = CameraMetadata.CONTROL_SCENE_MODE_DISABLED;
 		private int color_effect = CameraMetadata.CONTROL_EFFECT_MODE_OFF;
 		private int white_balance = CameraMetadata.CONTROL_AWB_MODE_AUTO;
 		private String flash_value = "flash_off";
 		private boolean has_iso = false;
-
-
+		//private int ae_mode = CameraMetadata.CONTROL_AE_MODE_ON;
+		//private int flash_mode = CameraMetadata.FLASH_MODE_OFF;
 		private int iso = 0;
 		private long exposure_time = 1000000000l/30;
-		private Rect scalar_crop_region = null;
+		private Rect scalar_crop_region = null; // no need for has_scalar_crop_region, as we can set to null instead
 		private boolean has_ae_exposure_compensation = false;
 		private int ae_exposure_compensation = 0;
 		private boolean has_af_mode = false;
 		private int af_mode = CaptureRequest.CONTROL_AF_MODE_AUTO;
-		private float focus_distance = 0.0f;
-		private float focus_distance_manual = 0.0f;
+		private float focus_distance = 0.0f; // actual value passed to camera device (set to 0.0 if in infinity mode)
+		private float focus_distance_manual = 0.0f; // saved setting when in manual mode
 		private boolean ae_lock = false;
-		private MeteringRectangle [] af_regions = null;
-		private MeteringRectangle [] ae_regions = null;
+		private MeteringRectangle [] af_regions = null; // no need for has_scalar_crop_region, as we can set to null instead
+		private MeteringRectangle [] ae_regions = null; // no need for has_scalar_crop_region, as we can set to null instead
 		private boolean has_face_detect_mode = false;
 		private int face_detect_mode = CaptureRequest.STATISTICS_FACE_DETECT_MODE_OFF;
 		private boolean video_stabilization = false;
 
 		private void setupBuilder(CaptureRequest.Builder builder, boolean is_still) {
-
-
-
-
-
+			//builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON);
+			//builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
+			//builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+			//builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
+			//builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_ALWAYS_FLASH);
 
 			builder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
 
@@ -143,7 +145,12 @@ public class CameraController2 extends CameraController {
 			setAERegions(builder);
 			setFaceDetectMode(builder);
 			setVideoStabilization(builder);
-
+			/*builder.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO);
+			builder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_AUTO);
+			builder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_OFF);
+			builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, 33333333l);
+			builder.set(CaptureRequest.SENSOR_SENSITIVITY, 40);
+			builder.set(CaptureRequest.SENSOR_FRAME_DURATION, 33333333l);*/
 
 			if( is_still ) {
 				if( location != null ) {
@@ -160,7 +167,7 @@ public class CameraController2 extends CameraController {
 				Log.d(TAG, "builder: " + builder);
 			}
 			if( builder.get(CaptureRequest.CONTROL_SCENE_MODE) == null && scene_mode == CameraMetadata.CONTROL_SCENE_MODE_DISABLED ) {
-
+				// can leave off
 			}
 			else if( builder.get(CaptureRequest.CONTROL_SCENE_MODE) == null || builder.get(CaptureRequest.CONTROL_SCENE_MODE) != scene_mode ) {
 				if( MyDebug.LOG )
@@ -179,7 +186,7 @@ public class CameraController2 extends CameraController {
 
 		private boolean setColorEffect(CaptureRequest.Builder builder) {
 			if( builder.get(CaptureRequest.CONTROL_EFFECT_MODE) == null && color_effect == CameraMetadata.CONTROL_EFFECT_MODE_OFF ) {
-
+				// can leave off
 			}
 			else if( builder.get(CaptureRequest.CONTROL_EFFECT_MODE) == null || builder.get(CaptureRequest.CONTROL_EFFECT_MODE) != color_effect ) {
 				if( MyDebug.LOG )
@@ -192,7 +199,7 @@ public class CameraController2 extends CameraController {
 
 		private boolean setWhiteBalance(CaptureRequest.Builder builder) {
 			if( builder.get(CaptureRequest.CONTROL_AWB_MODE) == null && white_balance == CameraMetadata.CONTROL_AWB_MODE_AUTO ) {
-
+				// can leave off
 			}
 			else if( builder.get(CaptureRequest.CONTROL_AWB_MODE) == null || builder.get(CaptureRequest.CONTROL_AWB_MODE) != white_balance ) {
 				if( MyDebug.LOG )
@@ -215,7 +222,7 @@ public class CameraController2 extends CameraController {
 				builder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_OFF);
 				builder.set(CaptureRequest.SENSOR_SENSITIVITY, iso);
 				builder.set(CaptureRequest.SENSOR_EXPOSURE_TIME, exposure_time);
-
+				// set flash via CaptureRequest.FLASH
 		    	if( flash_value.equals("flash_off") ) {
 					builder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF);
 		    	}
@@ -237,7 +244,7 @@ public class CameraController2 extends CameraController {
 					Log.d(TAG, "auto mode");
 					Log.d(TAG, "flash_value: " + flash_value);
 				}
-
+				// prefer to set flash via the ae mode (otherwise get even worse results), except for torch which we can't
 		    	if( flash_value.equals("flash_off") ) {
 					builder.set(CaptureRequest.CONTROL_AE_MODE, CameraMetadata.CONTROL_AE_MODE_ON);
 					builder.set(CaptureRequest.FLASH_MODE, CameraMetadata.FLASH_MODE_OFF);
@@ -324,7 +331,7 @@ public class CameraController2 extends CameraController {
 			builder.set(CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE, video_stabilization ? CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_ON : CaptureRequest.CONTROL_VIDEO_STABILIZATION_MODE_OFF);
 		}
 		
-
+		// n.b., if we add more methods, remember to update setupBuilder() above!
 	}
 	
 	private CameraSettings camera_settings = new CameraSettings();
@@ -349,7 +356,7 @@ public class CameraController2 extends CameraController {
 
 		class MyStateCallback extends CameraDevice.StateCallback {
 			boolean callback_done = false;
-			boolean first_callback = true;
+			boolean first_callback = true; // Google Camera says we may get multiple callbacks, but only the first indicates the status of the camera opening operation
 			@Override
 			public void onOpened(CameraDevice cam) {
 				if( MyDebug.LOG )
@@ -358,12 +365,12 @@ public class CameraController2 extends CameraController {
 					first_callback = false;
 
 				    try {
-
+				    	// we should be able to get characteristics at any time, but Google Camera only does so when camera opened - so do so similarly to be safe
 						characteristics = manager.getCameraCharacteristics(cameraIdS);
 
 						CameraController2.this.camera = cam;
 
-
+						// note, this won't start the preview yet, but we create the previewBuilder in order to start setting camera parameters
 						createPreviewRequest();
 					}
 				    catch(CameraAccessException e) {
@@ -373,7 +380,7 @@ public class CameraController2 extends CameraController {
 							Log.e(TAG, "message: " + e.getMessage());
 						}
 						e.printStackTrace();
-
+						// don't throw CameraControllerException here - instead error is handled by setting callback_done to callback_done, and the fact that camera will still be null
 					}
 
 					callback_done = true;
@@ -384,7 +391,7 @@ public class CameraController2 extends CameraController {
 			public void onClosed(CameraDevice cam) {
 				if( MyDebug.LOG )
 					Log.d(TAG, "camera closed");
-
+				// caller should ensure camera variables are set to null
 				if( first_callback ) {
 					first_callback = false;
 				}
@@ -396,8 +403,8 @@ public class CameraController2 extends CameraController {
 					Log.d(TAG, "camera disconnected");
 				if( first_callback ) {
 					first_callback = false;
-
-
+					// must call close() if disconnected before camera was opened
+					// need to set the camera to null first, as closing the camera may take some time, and we don't want any other operations to continue (if called from main thread)
 					CameraController2.this.camera = null;
 					if( MyDebug.LOG )
 						Log.d(TAG, "onDisconnected: camera is now set to null");
@@ -422,7 +429,7 @@ public class CameraController2 extends CameraController {
 					if( MyDebug.LOG )
 						Log.d(TAG, "error occurred after camera was opened");
 				}
-
+				// need to set the camera to null first, as closing the camera may take some time, and we don't want any other operations to continue (if called from main thread)
 				CameraController2.this.camera = null;
 				if( MyDebug.LOG )
 					Log.d(TAG, "onError: camera is now set to null");
@@ -448,7 +455,7 @@ public class CameraController2 extends CameraController {
 			throw new CameraControllerException();
 		}
 		catch(UnsupportedOperationException e) {
-
+			// Google Camera catches UnsupportedOperationException
 			if( MyDebug.LOG ) {
 				Log.e(TAG, "failed to open camera: UnsupportedOperationException");
 				Log.e(TAG, "message: " + e.getMessage());
@@ -457,7 +464,7 @@ public class CameraController2 extends CameraController {
 			throw new CameraControllerException();
 		}
 		catch(SecurityException e) {
-
+			// Google Camera catches SecurityException
 			if( MyDebug.LOG ) {
 				Log.e(TAG, "failed to open camera: SecurityException");
 				Log.e(TAG, "message: " + e.getMessage());
@@ -468,7 +475,7 @@ public class CameraController2 extends CameraController {
 
 		if( MyDebug.LOG )
 			Log.d(TAG, "wait until camera opened...");
-
+		// need to wait until camera is opened
 		while( !myStateCallback.callback_done ) {
 		}
 		if( camera == null ) {
@@ -479,7 +486,10 @@ public class CameraController2 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "camera now opened: " + camera);
 
-
+		/*CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraIdS);
+	    StreamConfigurationMap configs = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+	    android.util.Size [] camera_picture_sizes = configs.getOutputSizes(ImageFormat.JPEG);
+		imageReader = ImageReader.newInstance(camera_picture_sizes[0].getWidth(), , ImageFormat.JPEG, 2);*/
 	}
 
 	@Override
@@ -510,7 +520,10 @@ public class CameraController2 extends CameraController {
 			imageReader.close();
 			imageReader = null;
 		}
-
+		/*if( previewImageReader != null ) {
+			previewImageReader.close();
+			previewImageReader = null;
+		}*/
 	}
 
 	private List<String> convertFocusModesToValues(int [] supported_focus_modes_arr, float minimum_focus_distance) {
@@ -521,7 +534,7 @@ public class CameraController2 extends CameraController {
 	    	supported_focus_modes.add(supported_focus_modes_arr[i]);
 	    List<String> output_modes = new Vector<String>();
 		if( supported_focus_modes != null ) {
-
+			// also resort as well as converting
 			if( supported_focus_modes.contains(CaptureRequest.CONTROL_AF_MODE_AUTO) ) {
 				output_modes.add("focus_mode_auto");
 				if( MyDebug.LOG ) {
@@ -593,9 +606,9 @@ public class CameraController2 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "max_zoom: " + max_zoom);
 		if( camera_features.is_zoom_supported ) {
-
+			// set 20 steps per 2x factor
 			final int steps_per_2x_factor = 20;
-
+			//final double scale_factor = Math.pow(2.0, 1.0/(double)steps_per_2x_factor);
 			int n_steps =(int)( (steps_per_2x_factor * Math.log(max_zoom + 1.0e-11)) / Math.log(2.0));
 			final double scale_factor = Math.pow(max_zoom, 1.0/(double)n_steps);
 			if( MyDebug.LOG ) {
@@ -622,8 +635,8 @@ public class CameraController2 extends CameraController {
 		for(int i=0;i<face_modes.length;i++) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "face detection mode: " + face_modes[i]);
-
-
+			// Although we currently only make use of the "SIMPLE" features, some devices (e.g., Nexus 6) support FULL and not SIMPLE.
+			// We don't support SIMPLE yet, as I don't have any devices to test this.
 			if( face_modes[i] == CameraCharacteristics.STATISTICS_FACE_DETECT_MODE_FULL ) {
 				camera_features.supports_face_detection = true;
 			}
@@ -651,7 +664,7 @@ public class CameraController2 extends CameraController {
 			if( MyDebug.LOG )
 				Log.d(TAG, "video size: " + camera_size.getWidth() + " x " + camera_size.getHeight());
 			if( camera_size.getWidth() > 3840 || camera_size.getHeight() > 2160 )
-				continue;
+				continue; // Nexus 6 returns these, even though not supported?!
 			camera_features.video_sizes.add(new CameraController.Size(camera_size.getWidth(), camera_size.getHeight()));
 		}
 
@@ -669,8 +682,8 @@ public class CameraController2 extends CameraController {
 			if( MyDebug.LOG )
 				Log.d(TAG, "preview size: " + camera_size.getWidth() + " x " + camera_size.getHeight());
 			if( camera_size.getWidth() > display_size.x || camera_size.getHeight() > display_size.y ) {
-
-
+				// Nexus 6 returns these, even though not supported?! (get green corruption lines if we allow these)
+				// Google Camera filters anything larger than height 1080, with a todo saying to use device's measurements
 				continue;
 			}
 			camera_features.preview_sizes.add(new CameraController.Size(camera_size.getWidth(), camera_size.getHeight()));
@@ -688,8 +701,8 @@ public class CameraController2 extends CameraController {
 		camera_features.minimum_focus_distance = characteristics.get(CameraCharacteristics.LENS_INFO_MINIMUM_FOCUS_DISTANCE);
 		if( MyDebug.LOG )
 			Log.d(TAG, "minimum_focus_distance: " + camera_features.minimum_focus_distance);
-		int [] supported_focus_modes = characteristics.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES);
-		camera_features.supported_focus_values = convertFocusModesToValues(supported_focus_modes, camera_features.minimum_focus_distance);
+		int [] supported_focus_modes = characteristics.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES); // Android format
+		camera_features.supported_focus_values = convertFocusModesToValues(supported_focus_modes, camera_features.minimum_focus_distance); // convert to our format (also resorts)
 		camera_features.max_num_focus_areas = characteristics.get(CameraCharacteristics.CONTROL_MAX_REGIONS_AF);
 
 		camera_features.is_exposure_lock_supported = true;
@@ -701,7 +714,7 @@ public class CameraController2 extends CameraController {
 			camera_features.supports_iso_range = true;
 			camera_features.min_iso = iso_range.getLower();
 			camera_features.max_iso = iso_range.getUpper();
-
+			// we only expose exposure_time if iso_range is supported
 			Range<Long> exposure_time_range = characteristics.get(CameraCharacteristics.SENSOR_INFO_EXPOSURE_TIME_RANGE);
 			if( exposure_time_range != null ) {
 				camera_features.supports_exposure_time = true;
@@ -741,8 +754,11 @@ public class CameraController2 extends CameraController {
 		case CameraMetadata.CONTROL_SCENE_MODE_FIREWORKS:
 			value = "fireworks";
 			break;
-
-
+		// "hdr" no longer available in Camera2
+		/*case CameraMetadata.CONTROL_SCENE_MODE_HIGH_SPEED_VIDEO:
+			// new for Camera2
+			value = "high-speed-video";
+			break;*/
 		case CameraMetadata.CONTROL_SCENE_MODE_LANDSCAPE:
 			value = "landscape";
 			break;
@@ -786,7 +802,7 @@ public class CameraController2 extends CameraController {
 	public SupportedValues setSceneMode(String value) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setSceneMode: " + value);
-
+		// we convert to/from strings to be compatible with original Android Camera API
 		String default_value = getDefaultSceneMode();
 		int [] values2 = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_SCENE_MODES);
 		boolean has_disabled = false;
@@ -823,7 +839,7 @@ public class CameraController2 extends CameraController {
 			else if( supported_values.selected_value.equals("fireworks") ) {
 				selected_value2 = CameraMetadata.CONTROL_SCENE_MODE_FIREWORKS;
 			}
-
+			// "hdr" no longer available in Camera2
 			else if( supported_values.selected_value.equals("landscape") ) {
 				selected_value2 = CameraMetadata.CONTROL_SCENE_MODE_LANDSCAPE;
 			}
@@ -929,7 +945,7 @@ public class CameraController2 extends CameraController {
 	public SupportedValues setColorEffect(String value) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setColorEffect: " + value);
-
+		// we convert to/from strings to be compatible with original Android Camera API
 		String default_value = getDefaultColorEffect();
 		int [] values2 = characteristics.get(CameraCharacteristics.CONTROL_AVAILABLE_EFFECTS);
 		List<String> values = new ArrayList<String>();
@@ -1041,7 +1057,7 @@ public class CameraController2 extends CameraController {
 	public SupportedValues setWhiteBalance(String value) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setWhiteBalance: " + value);
-
+		// we convert to/from strings to be compatible with original Android Camera API
 		String default_value = getDefaultWhiteBalance();
 		int [] values2 = characteristics.get(CameraCharacteristics.CONTROL_AWB_AVAILABLE_MODES);
 		List<String> values = new ArrayList<String>();
@@ -1132,7 +1148,7 @@ public class CameraController2 extends CameraController {
 		}
 		values.add("" + iso_range.getUpper());
 
-
+		// n.b., we don't use checkModeIsSupported as ISO is a special case with CameraController2: we return a set of ISO values to use in the popup menu, but any ISO within the iso_range is valid
 		SupportedValues supported_values = null;
 		try {
 			if( value.equals(default_value) ) {
@@ -1194,8 +1210,8 @@ public class CameraController2 extends CameraController {
 	}
 	
 	@Override
-
-
+	// Returns whether ISO was modified
+	// N.B., use setISO(String) to switch between auto and manual mode
 	public boolean setISO(int iso) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setISO: " + iso);
@@ -1227,8 +1243,8 @@ public class CameraController2 extends CameraController {
 	}
 
 	@Override
-
-
+	// Returns whether exposure time was modified
+	// N.B., use setISO(String) to switch between auto and manual mode
 	public boolean setExposureTime(long exposure_time) {
 		if( MyDebug.LOG ) {
 			Log.d(TAG, "setExposureTime: " + exposure_time);
@@ -1272,10 +1288,10 @@ public class CameraController2 extends CameraController {
 			return;
 		}
 		if( captureSession != null ) {
-
+			// can only call this when captureSession not created - as the surface of the imageReader we create has to match the surface we pass to the captureSession
 			if( MyDebug.LOG )
 				Log.e(TAG, "can't set picture size when captureSession running!");
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		this.picture_width = width;
 		this.picture_height = height;
@@ -1285,10 +1301,10 @@ public class CameraController2 extends CameraController {
 		if( MyDebug.LOG )
 			Log.d(TAG, "createPictureImageReader");
 		if( captureSession != null ) {
-
+			// can only call this when captureSession not created - as the surface of the imageReader we create has to match the surface we pass to the captureSession
 			if( MyDebug.LOG )
 				Log.e(TAG, "can't create picture image reader when captureSession running!");
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		if( imageReader != null ) {
 			imageReader.close();
@@ -1296,7 +1312,7 @@ public class CameraController2 extends CameraController {
 		if( picture_width == 0 || picture_height == 0 ) {
 			if( MyDebug.LOG )
 				Log.e(TAG, "application needs to call setPictureSize()");
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		imageReader = ImageReader.newInstance(picture_width, picture_height, ImageFormat.JPEG, 2); 
 		if( MyDebug.LOG ) {
@@ -1320,7 +1336,7 @@ public class CameraController2 extends CameraController {
 					Log.d(TAG, "read " + bytes.length + " bytes");
 	            buffer.get(bytes);
 	            image.close();
-
+	            // need to set jpeg_cb etc to null before calling onPictureTaken, as that may reenter CameraController to take another photo (if in burst mode) - see testTakePhotoBurst()
 	            PictureCallback cb = jpeg_cb;
 	            jpeg_cb = null;
 	            take_picture_error_cb = null;
@@ -1339,10 +1355,18 @@ public class CameraController2 extends CameraController {
 	public void setPreviewSize(int width, int height) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setPreviewSize: " + width + " , " + height);
-
+		/*if( texture != null ) {
+			if( MyDebug.LOG )
+				Log.d(TAG, "set size of preview texture");
+			texture.setDefaultBufferSize(width, height);
+		}*/
 		preview_width = width;
 		preview_height = height;
-
+		/*if( previewImageReader != null ) {
+			previewImageReader.close();
+		}
+		previewImageReader = ImageReader.newInstance(width, height, ImageFormat.YUV_420_888, 2); 
+		*/
 	}
 
 	@Override
@@ -1377,7 +1401,7 @@ public class CameraController2 extends CameraController {
 		if( quality < 0 || quality > 100 ) {
 			if( MyDebug.LOG )
 				Log.e(TAG, "invalid jpeg quality" + quality);
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		this.camera_settings.jpeg_quality = (byte)quality;
 	}
@@ -1397,7 +1421,7 @@ public class CameraController2 extends CameraController {
 		if( value < 0 || value > zoom_ratios.size() ) {
 			if( MyDebug.LOG )
 				Log.e(TAG, "invalid zoom value" + value);
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		float zoom = zoom_ratios.get(value)/100.0f;
 		Rect sensor_rect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
@@ -1423,7 +1447,11 @@ public class CameraController2 extends CameraController {
 			Log.d(TAG, "top: " + top);
 			Log.d(TAG, "right: " + right);
 			Log.d(TAG, "bottom: " + bottom);
-
+			/*Rect current_rect = previewBuilder.get(CaptureRequest.SCALER_CROP_REGION);
+			Log.d(TAG, "current_rect left: " + current_rect.left);
+			Log.d(TAG, "current_rect top: " + current_rect.top);
+			Log.d(TAG, "current_rect right: " + current_rect.right);
+			Log.d(TAG, "current_rect bottom: " + current_rect.bottom);*/
 		}
 		camera_settings.scalar_crop_region = new Rect(left, top, right, bottom);
 		camera_settings.setCropRegion(previewBuilder);
@@ -1449,7 +1477,7 @@ public class CameraController2 extends CameraController {
 	}
 
 	@Override
-
+	// Returns whether exposure was modified
 	public boolean setExposureCompensation(int new_exposure) {
 		camera_settings.has_ae_exposure_compensation = true;
 		camera_settings.ae_exposure_compensation = new_exposure;
@@ -1472,18 +1500,18 @@ public class CameraController2 extends CameraController {
 	
 	@Override
 	public void setPreviewFpsRange(int min, int max) {
-
+		// TODO Auto-generated method stub
 
 	}
 
 	@Override
 	public List<int[]> getSupportedPreviewFpsRange() {
-
+		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
-
+	// note, responsibility of callers to check that this is within the valid min/max range
 	public long getDefaultExposureTime() {
 		return 1000000000l/30;
 	}
@@ -1524,7 +1552,7 @@ public class CameraController2 extends CameraController {
     	camera_settings.has_af_mode = true;
     	camera_settings.af_mode = focus_mode;
     	camera_settings.setFocusMode(previewBuilder);
-    	camera_settings.setFocusDistance(previewBuilder);
+    	camera_settings.setFocusDistance(previewBuilder); // also need to set distance, in case changed between infinity, manual or other modes
     	try {
     		setRepeatingRequest();
     	}
@@ -1558,7 +1586,7 @@ public class CameraController2 extends CameraController {
     		focus_value = "focus_mode_continuous_video";
     	}
 		else if( focus_mode == CaptureRequest.CONTROL_AF_MODE_OFF ) {
-    		focus_value = "focus_mode_manual2";
+    		focus_value = "focus_mode_manual2"; // n.b., could be infinity
 		}
     	return focus_value;
 	}
@@ -1614,12 +1642,12 @@ public class CameraController2 extends CameraController {
 
 		try {
 			if( camera_settings.flash_value.equals("flash_torch") ) {
-
+				// hack - first need to turn torch off, otherwise torch remains on (at least on Nexus 6)
 				camera_settings.flash_value = "flash_off";
 				camera_settings.setAEMode(previewBuilder, false);
 				CaptureRequest request = previewBuilder.build();
 	
-
+				// need to wait until torch actually turned off
 		    	camera_settings.flash_value = flash_value;
 				camera_settings.setAEMode(previewBuilder, false);
 				push_repeating_request_when_torch_off = true;
@@ -1646,7 +1674,7 @@ public class CameraController2 extends CameraController {
 
 	@Override
 	public String getFlashValue() {
-
+		// returns "" if flash isn't supported
 		if( !characteristics.get(CameraCharacteristics.FLASH_INFO_AVAILABLE) ) {
 			return "";
 		}
@@ -1655,7 +1683,7 @@ public class CameraController2 extends CameraController {
 
 	@Override
 	public void setRecordingHint(boolean hint) {
-
+		// not relevant for CameraController2
 	}
 
 	@Override
@@ -1705,8 +1733,8 @@ public class CameraController2 extends CameraController {
 	}
 
 	private Rect convertRectToCamera2(Rect sensor_rect, Rect rect) {
-
-
+		// CameraController.Area is always [-1000, -1000] to [1000, 1000]
+		// but for CameraController2, we must convert to [0, 0] to [sensor width-1, sensor height-1] for use as a MeteringRectangle
 		double left_f = (rect.left+1000)/2000.0;
 		double top_f = (rect.top+1000)/2000.0;
 		double right_f = (rect.right+1000)/2000.0;
@@ -1735,7 +1763,7 @@ public class CameraController2 extends CameraController {
 	}
 
 	private Rect convertRectFromCamera2(Rect sensor_rect, Rect camera2_rect) {
-
+		// inverse of convertRectToCamera2()
 		double left_f = camera2_rect.left/(double)(sensor_rect.width()-1);
 		double top_f = camera2_rect.top/(double)(sensor_rect.height()-1);
 		double right_f = camera2_rect.right/(double)(sensor_rect.width()-1);
@@ -1861,7 +1889,7 @@ public class CameraController2 extends CameraController {
 		Rect sensor_rect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
 		camera_settings.af_regions[0] = new MeteringRectangle(0, 0, sensor_rect.width()-1, sensor_rect.height()-1, 0);
 		if( metering_rectangles.length == 1 && metering_rectangles[0].getRect().left == 0 && metering_rectangles[0].getRect().top == 0 && metering_rectangles[0].getRect().right == sensor_rect.width()-1 && metering_rectangles[0].getRect().bottom == sensor_rect.height()-1 ) {
-
+			// for compatibility with CameraController1
 			return null;
 		}
 		List<Area> areas = new ArrayList<CameraController.Area>();
@@ -1880,7 +1908,7 @@ public class CameraController2 extends CameraController {
     		return null;
 		Rect sensor_rect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
 		if( metering_rectangles.length == 1 && metering_rectangles[0].getRect().left == 0 && metering_rectangles[0].getRect().top == 0 && metering_rectangles[0].getRect().right == sensor_rect.width()-1 && metering_rectangles[0].getRect().bottom == sensor_rect.height()-1 ) {
-
+			// for compatibility with CameraController1
 			return null;
 		}
 		List<Area> areas = new ArrayList<CameraController.Area>();
@@ -1918,7 +1946,7 @@ public class CameraController2 extends CameraController {
 			Log.e(TAG, "SurfaceHolder not supported for CameraController2!");
 			Log.e(TAG, "Should use setPreviewTexture() instead");
 		}
-		throw new RuntimeException();
+		throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 	}
 
 	@Override
@@ -1928,7 +1956,7 @@ public class CameraController2 extends CameraController {
 		if( this.texture != null ) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "preview texture already set");
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		this.texture = texture;
 	}
@@ -1978,7 +2006,7 @@ public class CameraController2 extends CameraController {
 			camera_settings.setupBuilder(previewBuilder, false);
 		}
 		catch(CameraAccessException e) {
-
+			//captureSession = null;
 			if( MyDebug.LOG ) {
 				Log.e(TAG, "failed to create capture request");
 				Log.e(TAG, "reason: " + e.getReason());
@@ -1999,7 +2027,7 @@ public class CameraController2 extends CameraController {
 		if( previewBuilder == null ) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "previewBuilder not present!");
-			throw new RuntimeException();
+			throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 		}
 		if( camera == null ) {
 			if( MyDebug.LOG )
@@ -2024,20 +2052,20 @@ public class CameraController2 extends CameraController {
 				}
 			}
 			else {
-
+				// in some cases need to recreate picture imageReader and the texture default buffer size (e.g., see test testTakePhotoPreviewPaused())
 				createPictureImageReader();
 			}
 			if( texture != null ) {
-
+				// need to set the texture size
 				if( MyDebug.LOG )
 					Log.d(TAG, "set size of preview texture");
 				if( preview_width == 0 || preview_height == 0 ) {
 					if( MyDebug.LOG )
 						Log.e(TAG, "application needs to call setPreviewSize()");
-					throw new RuntimeException();
+					throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 				}
 				texture.setDefaultBufferSize(preview_width, preview_height);
-
+				// also need to create a new surface for the texture, in case the size has changed - but make sure we remove the old one first!
 				if( surface_texture != null ) {
 					if( MyDebug.LOG )
 						Log.d(TAG, "remove old target: " + surface_texture);
@@ -2055,7 +2083,8 @@ public class CameraController2 extends CameraController {
 				if( MyDebug.LOG )
 					Log.d(TAG, "picture size: " + imageReader.getWidth() + " x " + imageReader.getHeight());
 			}
-
+			/*if( MyDebug.LOG )
+			Log.d(TAG, "preview size: " + previewImageReader.getWidth() + " x " + previewImageReader.getHeight());*/
 			if( MyDebug.LOG )
 				Log.d(TAG, "preview size: " + this.preview_width + " x " + this.preview_height);
 
@@ -2101,7 +2130,7 @@ public class CameraController2 extends CameraController {
 						Log.d(TAG, "captureSession was: " + captureSession);
 					}
 					callback_done = true;
-
+					// don't throw CameraControllerException here, as won't be caught - instead we throw CameraControllerException below
 				}
 			}
 			MyStateCallback myStateCallback = new MyStateCallback();
@@ -2119,7 +2148,7 @@ public class CameraController2 extends CameraController {
 					Log.d(TAG, "imageReader: " + imageReader.getImageFormat());
 				}
 			}
-			camera.createCaptureSession(Arrays.asList(preview_surface, capture_surface),
+			camera.createCaptureSession(Arrays.asList(preview_surface/*, previewImageReader.getSurface()*/, capture_surface),
 				myStateCallback,
 		 		handler);
 			if( MyDebug.LOG )
@@ -2161,7 +2190,7 @@ public class CameraController2 extends CameraController {
 					Log.e(TAG, "message: " + e.getMessage());
 				}
 				e.printStackTrace();
-
+				// do via CameraControllerException instead of preview_error_cb, so caller immediately knows preview has failed
 				throw new CameraControllerException();
 			} 
 			return;
@@ -2180,7 +2209,7 @@ public class CameraController2 extends CameraController {
 		}
 		try {
 			captureSession.stopRepeating();
-
+			// although stopRepeating() alone will pause the preview, seems better to close captureSession altogether - this allows the app to make changes such as changing the picture size
 			if( MyDebug.LOG )
 				Log.d(TAG, "close capture session");
 			captureSession.close();
@@ -2230,11 +2259,17 @@ public class CameraController2 extends CameraController {
 		if( camera == null || captureSession == null ) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "no camera or capture session");
-
+			// should call the callback, so the application isn't left waiting (e.g., when we autofocus before trying to take a photo)
 			cb.onAutoFocus(false);
 			return;
 		}
-
+		/*if( state == STATE_WAITING_AUTOFOCUS ) {
+			if( MyDebug.LOG )
+				Log.d(TAG, "already waiting for an autofocus");
+			// need to update the callback!
+			this.autofocus_cb = cb;
+			return;
+		}*/
     	previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
 		if( MyDebug.LOG ) {
 			{
@@ -2250,13 +2285,22 @@ public class CameraController2 extends CameraController {
 				}
 			}
 		}
-
-
-
+    	/*if( focus_areas != null ) {
+        	previewBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, focus_areas);
+    	}
+    	if( metering_areas != null ) {
+        	previewBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, metering_areas);
+    	}*/
+    	//previewBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER, CameraMetadata.CONTROL_AE_PRECAPTURE_TRIGGER_START);
+    	/*previewBuilder.set(CaptureRequest.LENS_FOCUS_DISTANCE, 0.0f);
+		if( MyDebug.LOG ) {
+			Float focus_distance = previewBuilder.get(CaptureRequest.LENS_FOCUS_DISTANCE);
+			Log.d(TAG, "focus_distance: " + focus_distance);
+		}*/
 		state = STATE_WAITING_AUTOFOCUS;
 		this.autofocus_cb = cb;
-
-
+		// Camera2Basic sets a repeating request rather than capture, for doing autofocus (and if we do a capture(), sometimes have problem that autofocus never returns)
+		// Google Camera does a capture, and then does a repeating request after setting back to idle
 		try {
 			capture();
 	    	previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);
@@ -2286,7 +2330,7 @@ public class CameraController2 extends CameraController {
 			return;
 		}
     	previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-
+		// Camera2Basic does a capture then sets a repeating request - do the same here just to be safe
     	try {
     		capture();
     	}
@@ -2318,7 +2362,7 @@ public class CameraController2 extends CameraController {
 	public void setContinuousFocusMoveCallback(ContinuousFocusMoveCallback cb) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "setContinuousFocusMoveCallback");
-
+		// not yet supported for Camera2
 	}
 
 	private void takePictureAfterPrecapture() {
@@ -2338,12 +2382,62 @@ public class CameraController2 extends CameraController {
 			stillBuilder.setTag(RequestTag.CAPTURE);
 			camera_settings.setupBuilder(stillBuilder, true);
         	Surface surface = getPreviewSurface();
-        	stillBuilder.addTarget(surface);
+        	stillBuilder.addTarget(surface); // Google Camera adds the preview surface as well as capture surface, for still capture
 			stillBuilder.addTarget(imageReader.getSurface());
 
+			/*CameraCaptureSession.CaptureCallback stillCaptureCallback = new CameraCaptureSession.CaptureCallback() { 
+				public void onCaptureStarted(CameraCaptureSession session, CaptureRequest request, long timestamp, long frameNumber) {
+					if( MyDebug.LOG )
+						Log.d(TAG, "still onCaptureStarted");
+					if( sounds_enabled )
+						media_action_sound.play(MediaActionSound.SHUTTER_CLICK);
+				}
 
-			captureSession.stopRepeating();
-
+				public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
+					if( MyDebug.LOG )
+						Log.d(TAG, "still onCaptureCompleted");
+					// actual parsing of image data is done in the imageReader's OnImageAvailableListener()
+					// need to cancel the autofocus, and restart the preview after taking the photo
+					previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+					camera_settings.setAEMode(previewBuilder, false); // not sure if needed, but the AE mode is set again in Camera2Basic
+					// n.b., if capture/setRepeatingRequest throw exception, we don't call the take_picture_error_cb.onError() callback, as the photo should have been taken by this point
+					try {
+			            if( !camera_settings.ae_lock && camera_settings.flash_value.equals("flash_on") ) {
+							// hack - needed to fix bug on Nexus 6 where auto-exposure sometimes locks when taking a photo of bright scene with flash on!
+			            	// this doesn't completely resolve the issue, but seems to make it far less common; also when it does happen, taking another photo usually fixes it
+			            	previewBuilder.set(CaptureRequest.CONTROL_AE_LOCK, true);
+			            	push_set_ae_lock = true;
+			            	push_set_ae_lock_id = previewBuilder.build();
+			            	capture(push_set_ae_lock_id);
+			            }
+			            else {
+			            	capture();
+			            }
+					}
+					catch(CameraAccessException e) {
+						if( MyDebug.LOG ) {
+							Log.e(TAG, "failed to cancel autofocus after taking photo");
+							Log.e(TAG, "reason: " + e.getReason());
+							Log.e(TAG, "message: " + e.getMessage());
+						}
+						e.printStackTrace();
+					}
+					try {
+						setRepeatingRequest();
+					}
+					catch(CameraAccessException e) {
+						if( MyDebug.LOG ) {
+							Log.e(TAG, "failed to start preview after taking photo");
+							Log.e(TAG, "reason: " + e.getReason());
+							Log.e(TAG, "message: " + e.getMessage());
+						}
+						e.printStackTrace();
+						preview_error_cb.onError();
+					} 
+				}
+			};*/
+			captureSession.stopRepeating(); // need to stop preview before capture (as done in Camera2Basic; otherwise we get bugs such as flash remaining on after taking a photo with flash)
+			//captureSession.capture(stillBuilder.build(), stillCaptureCallback, null);
 			captureSession.capture(stillBuilder.build(), previewCaptureCallback, handler);
 		}
 		catch(CameraAccessException e) {
@@ -2362,9 +2456,80 @@ public class CameraController2 extends CameraController {
 		}
 	}
 
+	/*private void takePictureBurstHdr() {
+		if( MyDebug.LOG )
+			Log.d(TAG, "takePictureBurstHdr");
+		if( camera == null || captureSession == null ) {
+			if( MyDebug.LOG )
+				Log.d(TAG, "no camera or capture session");
+			return;
+		}
+		try {
+			if( MyDebug.LOG ) {
+				Log.d(TAG, "imageReader: " + imageReader.toString());
+				Log.d(TAG, "imageReader surface: " + imageReader.getSurface().toString());
+			}
 
+			CaptureRequest.Builder stillBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+			stillBuilder.setTag(RequestTag.CAPTURE);
+			camera_settings.setupBuilder(stillBuilder, true);
+        	Surface surface = getPreviewSurface();
+        	stillBuilder.addTarget(surface); // Google Camera adds the preview surface as well as capture surface, for still capture
+			stillBuilder.addTarget(imageReader.getSurface());
 
+			List<CaptureRequest> requests = new ArrayList<CaptureRequest>();
+			requests.add( stillBuilder.build() );
 
+			captureSession.stopRepeating(); // see note under takePictureAfterPrecapture()
+			captureSession.captureBurst(requests, previewCaptureCallback, handler);
+		}
+		catch(CameraAccessException e) {
+			if( MyDebug.LOG ) {
+				Log.e(TAG, "failed to take picture burst");
+				Log.e(TAG, "reason: " + e.getReason());
+				Log.e(TAG, "message: " + e.getMessage());
+			}
+			e.printStackTrace();
+			jpeg_cb = null;
+			if( take_picture_error_cb != null ) {
+				take_picture_error_cb.onError();
+				take_picture_error_cb = null;
+				return;
+			}
+		}
+	}*/
+
+	/*private void runPrecapture() {
+		if( MyDebug.LOG )
+			Log.d(TAG, "runPrecapture");
+		// first run precapture sequence
+		// use a separate builder for precapture - otherwise have problem that if we take photo with flash auto/on of dark scene, then point to a bright scene, the autoexposure isn't running until we autofocus again
+    	//previewBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER, CameraMetadata.CONTROL_AE_PRECAPTURE_TRIGGER_START);
+    	//state = STATE_WAITING_PRECAPTURE_START;
+    	//capture();
+		try {
+			CaptureRequest.Builder precaptureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+			camera_settings.setupBuilder(precaptureBuilder, false);
+			precaptureBuilder.addTarget(getPreviewSurface());
+			precaptureBuilder.set(CaptureRequest.CONTROL_AE_PRECAPTURE_TRIGGER, CameraMetadata.CONTROL_AE_PRECAPTURE_TRIGGER_START);
+	    	state = STATE_WAITING_PRECAPTURE_START;
+			captureSession.capture(precaptureBuilder.build(), previewCaptureCallback, null);
+		}
+		catch(CameraAccessException e) {
+			if( MyDebug.LOG ) {
+				Log.e(TAG, "failed to precapture");
+				Log.e(TAG, "reason: " + e.getReason());
+				Log.e(TAG, "message: " + e.getMessage());
+			}
+			e.printStackTrace();
+			jpeg_cb = null;
+			if( take_picture_error_cb != null ) {
+				take_picture_error_cb.onError();
+				take_picture_error_cb = null;
+				return;
+			}
+		}
+	}*/
 	
 	@Override
 	public void takePicture(final PictureCallback raw, final PictureCallback jpeg, final ErrorCallback error) {
@@ -2378,25 +2543,34 @@ public class CameraController2 extends CameraController {
 		}
 		this.jpeg_cb = jpeg;
 		this.take_picture_error_cb = error;
-		takePictureAfterPrecapture();
+		takePictureAfterPrecapture(); // take photo without precapture - Google Camera with Camera 2 API doesn't do precapture either
+		/*if( camera_settings.has_iso ) {
+			takePictureAfterPrecapture();
+		}
+		else {
+			runPrecapture();
+		}*/
 
-
-
+		/*camera_settings.setupBuilder(previewBuilder, false);
+    	previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_START);
+		state = STATE_WAITING_AUTOFOCUS;
+    	//capture();
+    	setRepeatingRequest();*/
 	}
 
 	@Override
 	public void setDisplayOrientation(int degrees) {
-
+		// for CameraController2, the preview display orientation is handled via the TextureView's transform
 		if( MyDebug.LOG )
 			Log.d(TAG, "setDisplayOrientation not supported by this API");
-		throw new RuntimeException();
+		throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 	}
 
 	@Override
 	public int getDisplayOrientation() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "getDisplayOrientation not supported by this API");
-		throw new RuntimeException();
+		throw new RuntimeException(); // throw as RuntimeException, as this is a programming error
 	}
 
 	@Override
@@ -2411,12 +2585,12 @@ public class CameraController2 extends CameraController {
 
 	@Override
 	public void unlock() {
-
+		// do nothing at this stage
 	}
 
 	@Override
 	public void initVideoRecorderPrePrepare(MediaRecorder video_recorder) {
-
+		// do nothing at this stage
 	}
 
 	@Override
@@ -2449,8 +2623,11 @@ public class CameraController2 extends CameraController {
 			Log.d(TAG, "reconnect");
 		createPreviewRequest();
 		createCaptureSession(null);
-
-
+		/*if( MyDebug.LOG )
+			Log.d(TAG, "add preview surface to previewBuilder");
+    	Surface surface = getPreviewSurface();
+		previewBuilder.addTarget(surface);*/
+		//setRepeatingRequest();
 	}
 
 	@Override
@@ -2503,36 +2680,45 @@ public class CameraController2 extends CameraController {
 
 		public void onCaptureProgressed(CameraCaptureSession session, CaptureRequest request, CaptureResult partialResult) {
 			processAF(request, partialResult);
-			super.onCaptureProgressed(session, request, partialResult);
+			super.onCaptureProgressed(session, request, partialResult); // API docs say this does nothing, but call it just to be safe (as with Google Camera)
 		}
 
 		public void onCaptureCompleted(CameraCaptureSession session, CaptureRequest request, TotalCaptureResult result) {
 			processAF(request, result);
 			processCompleted(request, result);
-			super.onCaptureCompleted(session, request, result);
+			super.onCaptureCompleted(session, request, result); // API docs say this does nothing, but call it just to be safe (as with Google Camera)
 		}
 
 		private void processAF(CaptureRequest request, CaptureResult result) {
-
+			/*if( MyDebug.LOG )
+			Log.d(TAG, "preview processAF, state: " + state);*/
 			if( result.getFrameNumber() < last_af_state_frame_number ) {
-
+				/*if( MyDebug.LOG )
+					Log.d(TAG, "processAF discarded outdated frame " + result.getFrameNumber() + " vs " + last_af_state_frame_number);*/
 				return;
 			}
 			if( result.get(CaptureResult.CONTROL_AF_STATE) == null) {
 				if( MyDebug.LOG )
 					Log.d(TAG, "processAF discared as no af state info");
-
+				// Google Play crashes confirmed that this can happen; Google Camera also ignores cases with null af state
 				return;
 			}
 			last_af_state_frame_number = result.getFrameNumber();
 			int af_state = result.get(CaptureResult.CONTROL_AF_STATE);
-
+			/*if( MyDebug.LOG ) {
+				if( autofocus_cb == null ) {
+					if( af_state == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED )
+						Log.d(TAG, "processAF: autofocus success but no callback set");
+					else if( af_state == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED )
+						Log.d(TAG, "processAF: autofocus failed but no callback set");
+				}
+			}*/
 			if( state == STATE_NORMAL ) {
-
+				// do nothing
 			}
 			else if( state == STATE_WAITING_AUTOFOCUS && af_state != last_af_state ) {
-
-
+				// check for autofocus completing
+				// need to check that af_state != last_af_state, otherwise
 				if( af_state == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED || af_state == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED ||
 						af_state == CaptureResult.CONTROL_AF_STATE_PASSIVE_FOCUSED || af_state == CaptureResult.CONTROL_AF_STATE_PASSIVE_UNFOCUSED
 						) {
@@ -2545,10 +2731,15 @@ public class CameraController2 extends CameraController {
 						Log.d(TAG, "af_state: " + af_state);
 					}
 					state = STATE_NORMAL;
+					// we need to cancel af trigger, otherwise sometimes things seem to get confused, with the autofocus thinking it's completed too early
+			    	/*previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
+			    	capture();
+			    	previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_IDLE);*/
 
-
-
-					 if( autofocus_cb != null ) {
+					/*if( jpeg_cb != null ) {
+						runPrecapture();
+					}
+					else*/ if( autofocus_cb != null ) {
 						autofocus_cb.onAutoFocus(focus_success);
 						autofocus_cb = null;
 					}
@@ -2563,17 +2754,52 @@ public class CameraController2 extends CameraController {
 		}
 		
 		private void processCompleted(CaptureRequest request, CaptureResult result) {
-
+			/*if( state == STATE_WAITING_PRECAPTURE_START ) {
+				if( MyDebug.LOG )
+					Log.d(TAG, "waiting for precapture start...");
+				// CONTROL_AE_STATE can be null on some devices
+				Integer ae_state = result.get(CaptureResult.CONTROL_AE_STATE);
+				if( MyDebug.LOG ) {
+					if( ae_state != null )
+						Log.d(TAG, "CONTROL_AE_STATE = " + ae_state);
+					else
+						Log.d(TAG, "CONTROL_AE_STATE is null");
+				}
+				if( ae_state == null || ae_state == CaptureResult.CONTROL_AE_STATE_PRECAPTURE || ae_state == CaptureResult.CONTROL_AE_STATE_FLASH_REQUIRED ) {
+					if( MyDebug.LOG ) {
+						Log.d(TAG, "precapture started");
+					}
+					state = STATE_WAITING_PRECAPTURE_DONE;
+				}
+			}
+			else if( state == STATE_WAITING_PRECAPTURE_DONE ) {
+				if( MyDebug.LOG )
+					Log.d(TAG, "waiting for precapture done...");
+				// CONTROL_AE_STATE can be null on some devices
+				Integer ae_state = result.get(CaptureResult.CONTROL_AE_STATE);
+				if( ae_state == null || ae_state != CaptureResult.CONTROL_AE_STATE_PRECAPTURE ) {
+					if( MyDebug.LOG ) {
+						Log.d(TAG, "precapture completed");
+						if( ae_state != null )
+							Log.d(TAG, "CONTROL_AE_STATE = " + ae_state);
+						else
+							Log.d(TAG, "CONTROL_AE_STATE is null");
+					}
+					state = STATE_NORMAL;
+					takePictureAfterPrecapture();
+				}
+			}*/
 			
 			if( result.get(CaptureResult.SENSOR_SENSITIVITY) != null ) {
 				capture_result_has_iso = true;
 				capture_result_iso = result.get(CaptureResult.SENSOR_SENSITIVITY);
-
+				/*if( MyDebug.LOG )
+					Log.d(TAG, "capture_result_iso: " + capture_result_iso);*/
 				if( camera_settings.has_iso && camera_settings.iso != capture_result_iso ) {
-
-
-
-
+					// ugly hack: problem that when we start recording video (video_recorder.start() call), this often causes the ISO setting to reset to the wrong value!
+					// seems to happen more often with shorter exposure time
+					// seems to happen on other camera apps with Camera2 API too
+					// this workaround still means a brief flash with incorrect ISO, but is best we can do for now!
 					if( MyDebug.LOG ) {
 						Log.d(TAG, "ISO " + capture_result_iso + " different to requested ISO " + camera_settings.iso);
 						Log.d(TAG, "    requested ISO was: " + request.get(CaptureRequest.SENSOR_SENSITIVITY));
@@ -2609,7 +2835,16 @@ public class CameraController2 extends CameraController {
 			else {
 				capture_result_has_frame_duration = false;
 			}
-
+			/*if( MyDebug.LOG ) {
+				if( result.get(CaptureResult.SENSOR_EXPOSURE_TIME) != null ) {
+					long capture_result_exposure_time = result.get(CaptureResult.SENSOR_EXPOSURE_TIME);
+					Log.d(TAG, "capture_result_exposure_time: " + capture_result_exposure_time);
+				}
+				if( result.get(CaptureResult.SENSOR_FRAME_DURATION) != null ) {
+					long capture_result_frame_duration = result.get(CaptureResult.SENSOR_FRAME_DURATION);
+					Log.d(TAG, "capture_result_frame_duration: " + capture_result_frame_duration);
+				}
+			}*/
 
 			if( face_detection_listener != null && previewBuilder != null && previewBuilder.get(CaptureRequest.STATISTICS_FACE_DETECT_MODE) != null && previewBuilder.get(CaptureRequest.STATISTICS_FACE_DETECT_MODE) == CaptureRequest.STATISTICS_FACE_DETECT_MODE_FULL ) {
 				Rect sensor_rect = characteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
@@ -2671,13 +2906,21 @@ public class CameraController2 extends CameraController {
 			if( request.getTag() == RequestTag.CAPTURE ) {
 				if( MyDebug.LOG )
 					Log.d(TAG, "capture request completed");
-
-
+				// actual parsing of image data is done in the imageReader's OnImageAvailableListener()
+				// need to cancel the autofocus, and restart the preview after taking the photo
 				previewBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CameraMetadata.CONTROL_AF_TRIGGER_CANCEL);
-				camera_settings.setAEMode(previewBuilder, false);
-
+				camera_settings.setAEMode(previewBuilder, false); // not sure if needed, but the AE mode is set again in Camera2Basic
+				// n.b., if capture/setRepeatingRequest throw exception, we don't call the take_picture_error_cb.onError() callback, as the photo should have been taken by this point
 				try {
-		             {
+		            /*if( !camera_settings.ae_lock && camera_settings.flash_value.equals("flash_on") ) {
+						// hack - needed to fix bug on Nexus 6 where auto-exposure sometimes locks when taking a photo of bright scene with flash on!
+		            	// this doesn't completely resolve the issue, but seems to make it far less common; also when it does happen, taking another photo usually fixes it
+		            	previewBuilder.set(CaptureRequest.CONTROL_AE_LOCK, true);
+		            	push_set_ae_lock = true;
+		            	push_set_ae_lock_id = previewBuilder.build();
+		            	capture(push_set_ae_lock_id);
+		            }
+		            else*/ {
 		            	capture();
 		            }
 				}

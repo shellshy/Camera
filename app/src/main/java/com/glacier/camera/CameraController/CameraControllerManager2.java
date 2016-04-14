@@ -11,7 +11,9 @@ import android.hardware.camera2.CameraMetadata;
 import android.os.Build;
 import android.util.Log;
 
-
+/** Provides support using Android 5's Camera 2 API
+ *  android.hardware.camera2.*.
+ */
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class CameraControllerManager2 extends CameraControllerManager {
 	private static final String TAG = "CameraControllerManager2";
@@ -32,8 +34,8 @@ public class CameraControllerManager2 extends CameraControllerManager {
 			e.printStackTrace();
 		}
 		catch(AssertionError e) {
-
-
+			// had reported java.lang.AssertionError on Google Play, "Expected to get non-empty characteristics" from CameraManager.getOrCreateDeviceIdListLocked(CameraManager.java:465)
+			// yes, in theory we shouldn't catch AssertionError as it represents a programming error, however it's a programming error by Google (a condition they thought couldn't happen)
 			e.printStackTrace();
 		}
 		return 0;
@@ -53,7 +55,10 @@ public class CameraControllerManager2 extends CameraControllerManager {
 		return false;
 	}
 
-
+	/* Rather than allowing Camera2 API on all Android 5+ devices, we restrict it to cases where all cameras have at least LIMITED support.
+	 * (E.g., Nexus 6 has FULL support on back camera, LIMITED support on front camera.)
+	 * For now, devices with only LEGACY support should still with the old API.
+	 */
 	public boolean allowCamera2Support(int cameraId) {
 		CameraManager manager = (CameraManager)context.getSystemService(Context.CAMERA_SERVICE);
 		try {

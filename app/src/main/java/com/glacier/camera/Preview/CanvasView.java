@@ -8,7 +8,11 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 
-
+/** Overlay for the Preview - this just redirects to Preview.onDraw to do the
+ *  work. Only used if using a MyTextureView (if using MySurfaceView, then that
+ *  class can handle the onDraw()). TextureViews can't be used for both a
+ *  camera preview, and used for drawing on.
+ */
 public class CanvasView extends View {
 	private static final String TAG = "CanvasView";
 
@@ -22,13 +26,14 @@ public class CanvasView extends View {
 			Log.d(TAG, "new CanvasView");
 		}
 
-
-
+        // deprecated setting, but required on Android versions prior to 3.0
+		//getHolder().setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS); // deprecated
 		
 		final Handler handler = new Handler();
 		Runnable tick = new Runnable() {
 		    public void run() {
-
+				/*if( MyDebug.LOG )
+					Log.d(TAG, "invalidate()");*/
 		        invalidate();
 		        handler.postDelayed(this, 100);
 		    }
@@ -38,7 +43,8 @@ public class CanvasView extends View {
 	
 	@Override
 	public void onDraw(Canvas canvas) {
-
+		/*if( MyDebug.LOG )
+			Log.d(TAG, "onDraw()");*/
 		preview.draw(canvas);
 	}
 

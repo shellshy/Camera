@@ -11,12 +11,21 @@ import android.media.MediaRecorder;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
-
+/** CameraController is an abstract class that wraps up the access/control to
+ *  the Android camera, so that the rest of the application doesn't have to
+ *  deal directly with the Android camera API. It also allows us to support
+ *  more than one camera API through the same API (this is used to support both
+ *  the original camera API, and Android 5's Camera2 API).
+ *  The class is fairly low level wrapper about the APIs - there is some
+ *  additional logical/workarounds where such things are API-specific, but
+ *  otherwise the calling application still controls the behaviour of the
+ *  camera.
+ */
 public abstract class CameraController {
 	private static final String TAG = "CameraController";
 	int cameraId = 0;
 
-
+	// for testing:
 	public int count_camera_parameters_exception = 0;
 
 	public static class CameraFeatures {
@@ -64,11 +73,11 @@ public abstract class CameraController {
 		
 		@Override
 		public int hashCode() {
-
-
-
-
-
+			// must override this, as we override equals()
+			// can't use:
+			//return Objects.hash(width, height);
+			// as this requires API level 19
+			// so use this from http://stackoverflow.com/questions/11742593/what-is-the-hashcode-for-a-custom-class-having-just-two-int-properties
 			return width*31 + height;
 		}
 	}
@@ -160,13 +169,13 @@ public abstract class CameraController {
 	public abstract List<int []> getSupportedPreviewFpsRange();
 
 	public String getDefaultSceneMode() {
-		return "auto";
+		return "auto"; // chosen to match Camera.Parameters.SCENE_MODE_AUTO, but we also use compatible values for Camera2 API
 	}
 	public String getDefaultColorEffect() {
-		return "none";
+		return "none"; // chosen to match Camera.Parameters.EFFECT_NONE, but we also use compatible values for Camera2 API
 	}
 	public String getDefaultWhiteBalance() {
-		return "auto";
+		return "auto"; // chosen to match Camera.Parameters.WHITE_BALANCE_AUTO, but we also use compatible values for Camera2 API
 	}
 	public String getDefaultISO() {
 		return "auto";
@@ -230,15 +239,15 @@ public abstract class CameraController {
 		return 0;
 	}
 
-
+	// gets the available values of a generic mode, e.g., scene, color etc, and makes sure the requested mode is available
 	protected SupportedValues checkModeIsSupported(List<String> values, String value, String default_value) {
-		if( values != null && values.size() > 1 ) {
+		if( values != null && values.size() > 1 ) { // n.b., if there is only 1 supported value, we also return null, as no point offering the choice to the user (there are some devices, e.g., Samsung, that only have a scene mode of "auto")
 			if( MyDebug.LOG ) {
 				for(int i=0;i<values.size();i++) {
 		        	Log.d(TAG, "supported value: " + values.get(i));
 				}
 			}
-
+			// make sure result is valid
 			if( !values.contains(value) ) {
 				if( MyDebug.LOG )
 					Log.d(TAG, "value not valid!");

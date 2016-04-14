@@ -55,7 +55,8 @@ import android.view.View;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 
-
+/** Our implementation of ApplicationInterface, see there for details.
+ */
 public class MyApplicationInterface implements ApplicationInterface {
 	private static final String TAG = "MyApplicationInterface";
 	
@@ -89,9 +90,9 @@ public class MyApplicationInterface implements ApplicationInterface {
 	private Uri last_image_uri = null;
 	private String last_image_name = null;
 	
-	private Bitmap last_thumbnail = null;
-	private boolean thumbnail_anim = false;
-	private long thumbnail_anim_start_ms = -1;
+	private Bitmap last_thumbnail = null; // thumbnail of last picture taken
+	private boolean thumbnail_anim = false; // whether we are displaying the thumbnail animation
+	private long thumbnail_anim_start_ms = -1; // time that the thumbnail animation started
 	private RectF thumbnail_anim_src_rect = new RectF();
 	private RectF thumbnail_anim_dst_rect = new RectF();
 	private Matrix thumbnail_anim_matrix = new Matrix();
@@ -99,7 +100,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	private boolean continuous_focus_moving = false;
 	private long continuous_focus_moving_ms = 0;
 
-
+	// camera properties which are saved in bundle, but not stored in preferences (so will be remembered if the app goes into background, but not after restart)
 	private int cameraId = 0;
 	private int zoom_factor = 0;
 	private float focus_distance = 0.0f;
@@ -138,7 +139,7 @@ public class MyApplicationInterface implements ApplicationInterface {
         p.setAntiAlias(true);
         p.setStrokeCap(Paint.Cap.ROUND);
 		final float scale = getContext().getResources().getDisplayMetrics().density;
-		final float stroke_width = (float) (0.5f * scale + 0.5f);
+		final float stroke_width = (float) (0.5f * scale + 0.5f); // convert dps to pixels
 		p.setStrokeWidth(stroke_width);
 	}
 
@@ -198,10 +199,10 @@ public class MyApplicationInterface implements ApplicationInterface {
 	        		return VIDEOMETHOD_URI;
 	        	}
 	        }
-
+        	// if no EXTRA_OUTPUT, we should save to standard location, and will pass back the Uri of that location
 			if( MyDebug.LOG )
 				Log.d(TAG, "intent uri not specified");
-
+			// note that SAF URIs don't seem to work for calling applications (tested with Grabilla and "Photo Grabber Image From Video" (FreezeFrame)), so we use standard folder with non-SAF method
 			return VIDEOMETHOD_FILE;
         }
         boolean using_saf = storageUtils.isUsingSAF();
@@ -234,7 +235,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	        	}
 	        }
         }
-        throw new RuntimeException();
+        throw new RuntimeException(); // programming error if we arrived here
 	}
 
 	@Override
@@ -322,7 +323,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( MyDebug.LOG )
 			Log.d(TAG, "resolution_value: " + resolution_value);
 		if( resolution_value.length() > 0 ) {
-
+			// parse the saved size, and make sure it is still valid
 			int index = resolution_value.indexOf(' ');
 			if( index == -1 ) {
 				if( MyDebug.LOG )
@@ -413,7 +414,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     @Override
     public long getVideoMaxDurationPref() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-		String video_max_duration_value = sharedPreferences.getString(PreferenceKeys.getVideoMaxDurationPreferenceKey(), "10");
+		String video_max_duration_value = sharedPreferences.getString(PreferenceKeys.getVideoMaxDurationPreferenceKey(), "0");
 		long video_max_duration = 0;
 		try {
 			video_max_duration = (long)Integer.parseInt(video_max_duration_value) * 1000;
@@ -514,7 +515,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     @Override
 	public boolean getShowToastsPref() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-    	return sharedPreferences.getBoolean(PreferenceKeys.getShowToastsPreferenceKey(), false);
+    	return sharedPreferences.getBoolean(PreferenceKeys.getShowToastsPreferenceKey(), true);
     }
 
     private boolean getThumbnailAnimationPref() {
@@ -704,7 +705,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		}
 		else {
 			if( uri != null ) {
-
+				// see note in onPictureTaken() for where we call broadcastFile for SAF photos
 	    	    File real_file = storageUtils.getFileFromDocumentUriSAF(uri);
 				if( MyDebug.LOG )
 					Log.d(TAG, "real_file: " + real_file);
@@ -713,7 +714,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	            	main_activity.test_last_saved_image = real_file.getAbsolutePath();
                 }
                 else {
-
+                	// announce the SAF Uri
 	    		    storageUtils.announceUri(uri, false, true);
                 }
 			    done = true;
@@ -725,16 +726,16 @@ public class MyApplicationInterface implements ApplicationInterface {
 		String action = main_activity.getIntent().getAction();
         if( MediaStore.ACTION_VIDEO_CAPTURE.equals(action) ) {
     		if( done && video_method == VIDEOMETHOD_FILE ) {
-
+    			// do nothing here - we end the activity from storageUtils.broadcastFile after the file has been scanned, as it seems caller apps seem to prefer the content:// Uri rather than one based on a File
     		}
     		else {
     			if( MyDebug.LOG )
     				Log.d(TAG, "from video capture intent");
     			Intent output = null;
     			if( done ) {
-
-
-
+    				// may need to pass back the Uri we saved to, if the calling application didn't specify a Uri
+    				// set note above for VIDEOMETHOD_FILE
+    				// n.b., currently this code is not used, as we always switch to VIDEOMETHOD_FILE if the calling application didn't specify a Uri, but I've left this here for possible future behaviour
     				if( video_method == VIDEOMETHOD_SAF ) {
     					output = new Intent();
     					output.setData(uri);
@@ -747,7 +748,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     		}
         }
         else if( done ) {
-
+			// create thumbnail
 	    	long time_s = System.currentTimeMillis();
 			Bitmap thumbnail = null;
 		    MediaMetadataRetriever retriever = new MediaMetadataRetriever();
@@ -763,17 +764,17 @@ public class MyApplicationInterface implements ApplicationInterface {
 				thumbnail = retriever.getFrameAtTime(-1);
 			}
 		    catch(FileNotFoundException e) {
-
+		    	// video file wasn't saved?
 				Log.d(TAG, "failed to find thumbnail");
 		    	e.printStackTrace();
 		    }
 		    catch(IllegalArgumentException e) {
-
+		    	// corrupt video file?
 				Log.d(TAG, "failed to find thumbnail");
 		    	e.printStackTrace();
 		    }
 		    catch(RuntimeException e) {
-
+		    	// corrupt video file?
 				Log.d(TAG, "failed to find thumbnail");
 		    	e.printStackTrace();
 		    }
@@ -782,7 +783,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		    		retriever.release();
 		    	}
 		    	catch(RuntimeException ex) {
-
+		    		// ignore
 		    	}
 		    }
 		    if( thumbnail != null ) {
@@ -798,7 +799,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 					if( MyDebug.LOG )
 						Log.d(TAG, "    scale video thumbnail to " + new_width + " x " + new_height);
 		    		Bitmap scaled_thumbnail = Bitmap.createScaledBitmap(thumbnail, new_width, new_height, true);
-
+	    		    // careful, as scaled_thumbnail is sometimes not a copy!
 	    		    if( scaled_thumbnail != thumbnail ) {
 	    		    	thumbnail.recycle();
 	    		    	thumbnail = scaled_thumbnail;
@@ -829,12 +830,12 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( MyDebug.LOG )
 			Log.d(TAG, "onContinuousFocusMove: " + start);
 		if( start ) {
-			if( !continuous_focus_moving ) {
+			if( !continuous_focus_moving ) { // don't restart the animation if already in motion
 				continuous_focus_moving = true;
 				continuous_focus_moving_ms = System.currentTimeMillis();
 			}
 		}
-
+		// if we receive start==false, we don't stop the animation - let it continue
 	}
 
 	@Override
@@ -852,11 +853,11 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( sharedPreferences.getBoolean(PreferenceKeys.getLockVideoPreferenceKey(), false) ) {
 			main_activity.lockScreen();
 		}
-		main_activity.stopAudioListeners();
+		main_activity.stopAudioListeners(); // important otherwise MediaRecorder will fail to start() if we have an audiolistener! Also don't want to have the speech recognizer going off
 		ImageButton view = (ImageButton)main_activity.findViewById(R.id.take_photo);
 		view.setImageResource(R.drawable.take_video_recording);
 		view.setContentDescription( getContext().getResources().getString(R.string.stop_video) );
-		view.setTag(R.drawable.take_video_recording);
+		view.setTag(R.drawable.take_video_recording); // for testing
 	}
 
 	@Override
@@ -867,7 +868,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		ImageButton view = (ImageButton)main_activity.findViewById(R.id.take_photo);
 		view.setImageResource(R.drawable.take_video_selector);
 		view.setContentDescription( getContext().getResources().getString(R.string.start_video) );
-		view.setTag(R.drawable.take_video_selector);
+		view.setTag(R.drawable.take_video_selector); // for testing
 	}
 
 	@Override
@@ -886,8 +887,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 			if( message_id != 0 )
 				main_activity.getPreview().showToast(null, message_id);
-
-
+			// in versions 1.24 and 1.24, there was a bug where we had "info_" for onVideoError and "error_" for onVideoInfo!
+			// fixed in 1.25; also was correct for 1.23 and earlier
 			String debug_value = "info_" + what + "_" + extra;
 			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
 			SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -918,8 +919,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 			message_id = R.string.video_error_server_died;
 		}
 		main_activity.getPreview().showToast(null, message_id);
-
-
+		// in versions 1.24 and 1.24, there was a bug where we had "info_" for onVideoError and "error_" for onVideoInfo!
+		// fixed in 1.25; also was correct for 1.23 and earlier
 		String debug_value = "error_" + what + "_" + extra;
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
 		SharedPreferences.Editor editor = sharedPreferences.edit();
@@ -943,14 +944,14 @@ public class MyApplicationInterface implements ApplicationInterface {
 		ImageButton view = (ImageButton)main_activity.findViewById(R.id.take_photo);
 		view.setImageResource(R.drawable.take_video_selector);
 		view.setContentDescription( getContext().getResources().getString(R.string.start_video) );
-		view.setTag(R.drawable.take_video_selector);
+		view.setTag(R.drawable.take_video_selector); // for testing
 	}
 
 	@Override
 	public void onVideoRecordStopError(CamcorderProfile profile) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "onVideoRecordStopError");
-
+		//main_activity.getPreview().showToast(null, R.string.failed_to_record_video);
 		String features = main_activity.getPreview().getErrorFeatures(profile);
 		String error_message = getContext().getResources().getString(R.string.video_may_be_corrupted);
 		if( features.length() > 0 ) {
@@ -992,7 +993,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	@Override
 	public void cameraClosed() {
 		main_activity.getMainUI().clearSeekBar();
-		main_activity.getMainUI().destroyPopup();
+		main_activity.getMainUI().destroyPopup(); // need to close popup - and when camera reopened, it may have different settings
 		continuous_focus_moving = false;
 		continuous_focus_moving_ms = 0;
 	}
@@ -1011,7 +1012,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     	Bitmap old_thumbnail = this.last_thumbnail;
     	this.last_thumbnail = thumbnail;
     	if( old_thumbnail != null ) {
-
+    		// only recycle after we've set the new thumbnail
     		old_thumbnail.recycle();
     	}
 	}
@@ -1067,7 +1068,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		SharedPreferences.Editor editor = sharedPreferences.edit();
 		editor.putString(PreferenceKeys.getFocusPreferenceKey(cameraId, is_video), focus_value);
 		editor.apply();
-
+		// focus may be updated by preview (e.g., when switching to/from video mode)
     	final int visibility = main_activity.getPreview().getCurrentFocusValue() != null && main_activity.getPreview().getCurrentFocusValue().equals("focus_mode_manual2") ? View.VISIBLE : View.INVISIBLE;
 	    View focusSeekBar = (SeekBar) main_activity.findViewById(R.id.focus_seekbar);
 	    focusSeekBar.setVisibility(visibility);
@@ -1234,7 +1235,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( main_activity.getMainUI().inImmersiveMode() ) {
 			String immersive_mode = sharedPreferences.getString(PreferenceKeys.getImmersiveModePreferenceKey(), "immersive_mode_low_profile");
 			if( immersive_mode.equals("immersive_mode_everything") ) {
-
+				// exit, to ensure we don't display anything!
 				return;
 			}
 		}
@@ -1261,7 +1262,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			canvas.drawLine(3.0f*canvas.getWidth()/4.0f, 0.0f, 3.0f*canvas.getWidth()/4.0f, canvas.getHeight()-1.0f, p);
 			canvas.drawLine(0.0f, canvas.getHeight()/2.0f, canvas.getWidth()-1.0f, canvas.getHeight()/2.0f, p);
 			p.setColor(Color.WHITE);
-			int crosshairs_radius = (int) (20 * scale + 0.5f);
+			int crosshairs_radius = (int) (20 * scale + 0.5f); // convert dps to pixels
 			canvas.drawLine(canvas.getWidth()/2.0f, canvas.getHeight()/2.0f - crosshairs_radius, canvas.getWidth()/2.0f, canvas.getHeight()/2.0f + crosshairs_radius, p);
 			canvas.drawLine(canvas.getWidth()/2.0f - crosshairs_radius, canvas.getHeight()/2.0f, canvas.getWidth()/2.0f + crosshairs_radius, canvas.getHeight()/2.0f, p);
 		}
@@ -1276,7 +1277,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				canvas.scale(-1.0f, 1.0f, canvas.getWidth()*0.5f, canvas.getHeight()*0.5f);
 			}
 			else if( preference_grid.equals("preference_grid_golden_spiral_right") ) {
-
+				// no transformation needed
 			}
 			else if( preference_grid.equals("preference_grid_golden_spiral_upside_down_left") ) {
 				canvas.rotate(180.0f, canvas.getWidth()*0.5f, canvas.getHeight()*0.5f);
@@ -1400,7 +1401,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			String preference_crop_guide = sharedPreferences.getString(PreferenceKeys.getShowCropGuidePreferenceKey(), "crop_guide_none");
 			if( camera_controller != null && preview.getTargetRatio() > 0.0 && !preference_crop_guide.equals("crop_guide_none") ) {
 				p.setStyle(Paint.Style.STROKE);
-				p.setColor(Color.rgb(255, 235, 59));
+				p.setColor(Color.rgb(255, 235, 59)); // Yellow 500
 				double crop_ratio = -1.0;
 				if( preference_crop_guide.equals("crop_guide_1") ) {
 					crop_ratio = 1.0;
@@ -1427,22 +1428,27 @@ public class MyApplicationInterface implements ApplicationInterface {
 					crop_ratio = 2.33333333;
 				}
 				else if( preference_crop_guide.equals("crop_guide_2.35") ) {
-					crop_ratio = 2.35006120;
+					crop_ratio = 2.35006120; // actually 1920:817
 				}
 				else if( preference_crop_guide.equals("crop_guide_2.4") ) {
 					crop_ratio = 2.4;
 				}
 				if( crop_ratio > 0.0 && Math.abs(preview.getTargetRatio() - crop_ratio) > 1.0e-5 ) {
-
+		    		/*if( MyDebug.LOG ) {
+		    			Log.d(TAG, "crop_ratio: " + crop_ratio);
+		    			Log.d(TAG, "preview_targetRatio: " + preview_targetRatio);
+		    			Log.d(TAG, "canvas width: " + canvas.getWidth());
+		    			Log.d(TAG, "canvas height: " + canvas.getHeight());
+		    		}*/
 					int left = 1, top = 1, right = canvas.getWidth()-1, bottom = canvas.getHeight()-1;
 					if( crop_ratio > preview.getTargetRatio() ) {
-
+						// crop ratio is wider, so we have to crop top/bottom
 						double new_hheight = ((double)canvas.getWidth()) / (2.0f*crop_ratio);
 						top = (int)(canvas.getHeight()/2 - (int)new_hheight);
 						bottom = (int)(canvas.getHeight()/2 + (int)new_hheight);
 					}
 					else {
-
+						// crop ratio is taller, so we have to crop left/right
 						double new_hwidth = (((double)canvas.getHeight()) * crop_ratio) / 2.0f;
 						left = (int)(canvas.getWidth()/2 - (int)new_hwidth);
 						right = (int)(canvas.getWidth()/2 + (int)new_hwidth);
@@ -1452,7 +1458,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 		}
 
-
+		// note, no need to check preferences here, as we do that when setting thumbnail_anim
 		if( camera_controller != null && this.thumbnail_anim && last_thumbnail != null ) {
 			long time = System.currentTimeMillis() - this.thumbnail_anim_start_ms;
 			final long duration = 500;
@@ -1480,8 +1486,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 				float st_h = canvas.getHeight();
 				float nd_w = galleryButton.getWidth();
 				float nd_h = galleryButton.getHeight();
-
-
+				//int thumbnail_w = (int)( (1.0f-alpha)*st_w + alpha*nd_w );
+				//int thumbnail_h = (int)( (1.0f-alpha)*st_h + alpha*nd_h );
 				float correction_w = st_w/nd_w - 1.0f;
 				float correction_h = st_h/nd_h - 1.0f;
 				int thumbnail_w = (int)(st_w/(1.0f+alpha*correction_w));
@@ -1490,9 +1496,9 @@ public class MyApplicationInterface implements ApplicationInterface {
 				thumbnail_anim_dst_rect.top = thumbnail_y - thumbnail_h/2;
 				thumbnail_anim_dst_rect.right = thumbnail_x + thumbnail_w/2;
 				thumbnail_anim_dst_rect.bottom = thumbnail_y + thumbnail_h/2;
-
+				//canvas.drawBitmap(this.thumbnail, thumbnail_anim_src_rect, thumbnail_anim_dst_rect, p);
 				thumbnail_anim_matrix.setRectToRect(thumbnail_anim_src_rect, thumbnail_anim_dst_rect, Matrix.ScaleToFit.FILL);
-
+				//thumbnail_anim_matrix.reset();
 				if( ui_rotation == 90 || ui_rotation == 270 ) {
 					float ratio = ((float)last_thumbnail.getWidth())/(float)last_thumbnail.getHeight();
 					thumbnail_anim_matrix.preScale(ratio, 1.0f/ratio, last_thumbnail.getWidth()/2.0f, last_thumbnail.getHeight()/2.0f);
@@ -1505,8 +1511,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 		canvas.save();
 		canvas.rotate(ui_rotation, canvas.getWidth()/2.0f, canvas.getHeight()/2.0f);
 
-		int text_y = (int) (20 * scale + 0.5f);
-
+		int text_y = (int) (20 * scale + 0.5f); // convert dps to pixels
+		// fine tuning to adjust placement of text with respect to the GUI, depending on orientation
 		int text_base_y = 0;
 		if( ui_rotation == ( ui_placement_right ? 0 : 180 ) ) {
 			text_base_y = canvas.getHeight() - (int)(0.5*text_y);
@@ -1515,40 +1521,45 @@ public class MyApplicationInterface implements ApplicationInterface {
 			text_base_y = canvas.getHeight() - (int)(2.5*text_y);
 		}
 		else if( ui_rotation == 90 || ui_rotation == 270 ) {
-
+			//text_base_y = canvas.getHeight() + (int)(0.5*text_y);
 			ImageButton view = (ImageButton)main_activity.findViewById(R.id.take_photo);
-
+			// align with "top" of the take_photo button, but remember to take the rotation into account!
 			view.getLocationOnScreen(gui_location);
 			int view_left = gui_location[0];
 			preview.getView().getLocationOnScreen(gui_location);
 			int this_left = gui_location[0];
 			int diff_x = view_left - ( this_left + canvas.getWidth()/2 );
-
+    		/*if( MyDebug.LOG ) {
+    			Log.d(TAG, "view left: " + view_left);
+    			Log.d(TAG, "this left: " + this_left);
+    			Log.d(TAG, "canvas is " + canvas.getWidth() + " x " + canvas.getHeight());
+    		}*/
 			int max_x = canvas.getWidth();
 			if( ui_rotation == 90 ) {
-
+				// so we don't interfere with the top bar info (time, etc)
 				max_x -= (int)(1.5*text_y);
 			}
 			if( canvas.getWidth()/2 + diff_x > max_x ) {
-
+				// in case goes off the size of the canvas, for "black bar" cases (when preview aspect ratio != screen aspect ratio)
 				diff_x = max_x - canvas.getWidth()/2;
 			}
 			text_base_y = canvas.getHeight()/2 + diff_x - (int)(0.5*text_y);
 		}
-		final int top_y = (int) (5 * scale + 0.5f);
+		final int top_y = (int) (5 * scale + 0.5f); // convert dps to pixels
 
 		final String ybounds_text = getContext().getResources().getString(R.string.zoom) + getContext().getResources().getString(R.string.angle) + getContext().getResources().getString(R.string.direction);
 		final double close_angle = 1.0f;
 		if( camera_controller != null && !preview.isPreviewPaused() ) {
-
+			/*canvas.drawText("PREVIEW", canvas.getWidth() / 2,
+					canvas.getHeight() / 2, p);*/
 			boolean draw_angle = has_level_angle && sharedPreferences.getBoolean(PreferenceKeys.getShowAnglePreferenceKey(), true);
 			boolean draw_geo_direction = has_geo_direction && sharedPreferences.getBoolean(PreferenceKeys.getShowGeoDirectionPreferenceKey(), true);
 			if( draw_angle ) {
 				int color = Color.WHITE;
-				p.setTextSize(14 * scale + 0.5f);
+				p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 				int pixels_offset_x = 0;
 				if( draw_geo_direction ) {
-					pixels_offset_x = - (int) (82 * scale + 0.5f);
+					pixels_offset_x = - (int) (82 * scale + 0.5f); // convert dps to pixels
 					p.setTextAlign(Paint.Align.LEFT);
 				}
 				else {
@@ -1559,14 +1570,14 @@ public class MyApplicationInterface implements ApplicationInterface {
 					p.setUnderlineText(true);
 				}
 				String number_string = decimalFormat.format(level_angle);
-				number_string = number_string.replaceAll( "^-(?=0(.0*)?$)", "");
+				number_string = number_string.replaceAll( "^-(?=0(.0*)?$)", ""); // avoids displaying "-0.0", see http://stackoverflow.com/questions/11929096/negative-sign-in-case-of-zero-in-java
 				String string = getContext().getResources().getString(R.string.angle) + ": " + number_string + (char)0x00B0;
 				drawTextWithBackground(canvas, p, string, color, Color.BLACK, canvas.getWidth() / 2 + pixels_offset_x, text_base_y, false, ybounds_text, true);
 				p.setUnderlineText(false);
 			}
 			if( draw_geo_direction ) {
 				int color = Color.WHITE;
-				p.setTextSize(14 * scale + 0.5f);
+				p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 				if( draw_angle ) {
 					p.setTextAlign(Paint.Align.LEFT);
 				}
@@ -1585,29 +1596,30 @@ public class MyApplicationInterface implements ApplicationInterface {
 				if( MyDebug.LOG )
 					Log.d(TAG, "remaining_time: " + remaining_time);
 				if( remaining_time > 0 ) {
-					p.setTextSize(42 * scale + 0.5f);
+					p.setTextSize(42 * scale + 0.5f); // convert dps to pixels
 					p.setTextAlign(Paint.Align.CENTER);
 	            	String time_s = "";
 	            	if( remaining_time < 60 ) {
-
+	            		// simpler to just show seconds when less than a minute
 	            		time_s = "" + remaining_time;
 	            	}
 	            	else {
 		            	time_s = getTimeStringFromSeconds(remaining_time);
 	            	}
-					drawTextWithBackground(canvas, p, time_s, Color.rgb(244, 67, 54), Color.BLACK, canvas.getWidth() / 2, canvas.getHeight() / 2);
+					drawTextWithBackground(canvas, p, time_s, Color.rgb(244, 67, 54), Color.BLACK, canvas.getWidth() / 2, canvas.getHeight() / 2); // Red 500
 				}
 			}
 			else if( preview.isVideoRecording() ) {
             	long video_time = preview.getVideoTime();
             	String time_s = getTimeStringFromSeconds(video_time/1000);
-
-    			p.setTextSize(14 * scale + 0.5f);
+            	/*if( MyDebug.LOG )
+					Log.d(TAG, "video_time: " + video_time + " " + time_s);*/
+    			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
     			p.setTextAlign(Paint.Align.CENTER);
-				int pixels_offset_y = 3*text_y;
-				int color = Color.rgb(244, 67, 54);
+				int pixels_offset_y = 3*text_y; // avoid overwriting the zoom or ISO label
+				int color = Color.rgb(244, 67, 54); // Red 500
             	if( main_activity.isScreenLocked() ) {
-
+            		// writing in reverse order, bottom to top
             		drawTextWithBackground(canvas, p, getContext().getResources().getString(R.string.screen_lock_message_2), color, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y);
             		pixels_offset_y += text_y;
             		drawTextWithBackground(canvas, p, getContext().getResources().getString(R.string.screen_lock_message_1), color, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y);
@@ -1617,21 +1629,24 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 		}
 		else if( camera_controller == null ) {
-
+			/*if( MyDebug.LOG ) {
+				Log.d(TAG, "no camera!");
+				Log.d(TAG, "width " + canvas.getWidth() + " height " + canvas.getHeight());
+			}*/
 			p.setColor(Color.WHITE);
-			p.setTextSize(14 * scale + 0.5f);
+			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 			p.setTextAlign(Paint.Align.CENTER);
-			int pixels_offset = (int) (20 * scale + 0.5f);
+			int pixels_offset = (int) (20 * scale + 0.5f); // convert dps to pixels
 			canvas.drawText(getContext().getResources().getString(R.string.failed_to_open_camera_1), canvas.getWidth() / 2.0f, canvas.getHeight() / 2.0f, p);
 			canvas.drawText(getContext().getResources().getString(R.string.failed_to_open_camera_2), canvas.getWidth() / 2.0f, canvas.getHeight() / 2.0f + pixels_offset, p);
 			canvas.drawText(getContext().getResources().getString(R.string.failed_to_open_camera_3), canvas.getWidth() / 2.0f, canvas.getHeight() / 2.0f + 2*pixels_offset, p);
-
-
-
+			//canvas.drawRect(0.0f, 0.0f, 100.0f, 100.0f, p);
+			//canvas.drawRGB(255, 0, 0);
+			//canvas.drawRect(0.0f, 0.0f, canvas.getWidth(), canvas.getHeight(), p);
 		}
 		if( camera_controller != null && sharedPreferences.getBoolean(PreferenceKeys.getShowISOPreferenceKey(), true) ) {
 			int pixels_offset_y = 2*text_y;
-			p.setTextSize(14 * scale + 0.5f);
+			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 			p.setTextAlign(Paint.Align.CENTER);
 			String string = "";
 			if( camera_controller.captureResultHasIso() ) {
@@ -1653,24 +1668,24 @@ public class MyApplicationInterface implements ApplicationInterface {
 				string += preview.getFrameDurationString(frame_duration);
 			}
 			if( string.length() > 0 ) {
-				drawTextWithBackground(canvas, p, string, Color.rgb(255, 235, 59), Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y, false, ybounds_text, true);
+				drawTextWithBackground(canvas, p, string, Color.rgb(255, 235, 59), Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y, false, ybounds_text, true); // Yellow 500
 			}
 		}
-		if( preview.supportsZoom() && camera_controller != null && sharedPreferences.getBoolean(PreferenceKeys.getShowZoomPreferenceKey(), false) ) {
+		if( preview.supportsZoom() && camera_controller != null && sharedPreferences.getBoolean(PreferenceKeys.getShowZoomPreferenceKey(), true) ) {
 			float zoom_ratio = preview.getZoomRatio();
-
+			// only show when actually zoomed in
 			if( zoom_ratio > 1.0f + 1.0e-5f ) {
-
+				// Convert the dps to pixels, based on density scale
 				int pixels_offset_y = text_y;
-				p.setTextSize(14 * scale + 0.5f);
+				p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 				p.setTextAlign(Paint.Align.CENTER);
 				drawTextWithBackground(canvas, p, getContext().getResources().getString(R.string.zoom) + ": " + zoom_ratio +"x", Color.WHITE, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y, false, ybounds_text, true);
 			}
 		}
 
-		if( sharedPreferences.getBoolean(PreferenceKeys.getShowBatteryPreferenceKey(), false) ) {
+		if( sharedPreferences.getBoolean(PreferenceKeys.getShowBatteryPreferenceKey(), true) ) {
 			if( !this.has_battery_frac || System.currentTimeMillis() > this.last_battery_time + 60000 ) {
-
+				// only check periodically - unclear if checking is costly in any way
 				Intent batteryStatus = main_activity.registerReceiver(null, battery_ifilter);
 				int battery_level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
 				int battery_scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
@@ -1680,10 +1695,10 @@ public class MyApplicationInterface implements ApplicationInterface {
 				if( MyDebug.LOG )
 					Log.d(TAG, "Battery status is " + battery_level + " / " + battery_scale + " : " + battery_frac);
 			}
-
-			int battery_x = (int) (5 * scale + 0.5f);
+			//battery_frac = 0.2999f; // test
+			int battery_x = (int) (5 * scale + 0.5f); // convert dps to pixels
 			int battery_y = top_y;
-			int battery_width = (int) (5 * scale + 0.5f);
+			int battery_width = (int) (5 * scale + 0.5f); // convert dps to pixels
 			int battery_height = 4*battery_width;
 			if( ui_rotation == 90 || ui_rotation == 270 ) {
 				int diff = canvas.getWidth() - canvas.getHeight();
@@ -1699,15 +1714,15 @@ public class MyApplicationInterface implements ApplicationInterface {
 			p.setColor(Color.WHITE);
 			p.setStyle(Paint.Style.STROKE);
 			canvas.drawRect(battery_x, battery_y, battery_x+battery_width, battery_y+battery_height, p);
-			p.setColor(battery_frac >= 0.3f ? Color.rgb(37, 155, 36) : Color.rgb(244, 67, 54));
+			p.setColor(battery_frac >= 0.3f ? Color.rgb(37, 155, 36) : Color.rgb(244, 67, 54)); // Green 500 or Red 500
 			p.setStyle(Paint.Style.FILL);
 			canvas.drawRect(battery_x+1, battery_y+1+(1.0f-battery_frac)*(battery_height-2), battery_x+battery_width-1, battery_y+battery_height-1, p);
 		}
 		
 		boolean store_location = sharedPreferences.getBoolean(PreferenceKeys.getLocationPreferenceKey(), false);
-		final int location_size = (int) (20 * scale + 0.5f);
+		final int location_size = (int) (20 * scale + 0.5f); // convert dps to pixels
 		if( store_location ) {
-			int location_x = (int) (20 * scale + 0.5f);
+			int location_x = (int) (20 * scale + 0.5f); // convert dps to pixels
 			int location_y = top_y;
 			if( ui_rotation == 90 || ui_rotation == 270 ) {
 				int diff = canvas.getWidth() - canvas.getHeight();
@@ -1727,7 +1742,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				int indicator_x = location_x + location_size;
 				int indicator_y = location_y + location_radius/2 + 1;
 				p.setStyle(Paint.Style.FILL);
-				p.setColor(this.getLocation().getAccuracy() < 25.01f ? Color.rgb(37, 155, 36) : Color.rgb(255, 235, 59));
+				p.setColor(this.getLocation().getAccuracy() < 25.01f ? Color.rgb(37, 155, 36) : Color.rgb(255, 235, 59)); // Green 500 or Yellow 500
 				canvas.drawCircle(indicator_x, indicator_y, location_radius, p);
 			}
 			else {
@@ -1735,10 +1750,10 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 		}
 		
-		if( sharedPreferences.getBoolean(PreferenceKeys.getShowTimePreferenceKey(), false) ) {
-			p.setTextSize(14 * scale + 0.5f);
+		if( sharedPreferences.getBoolean(PreferenceKeys.getShowTimePreferenceKey(), true) ) {
+			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 			p.setTextAlign(Paint.Align.LEFT);
-			int location_x = (int) (50 * scale + 0.5f);
+			int location_x = (int) (50 * scale + 0.5f); // convert dps to pixels
 			int location_y = top_y;
 			if( ui_rotation == 90 || ui_rotation == 270 ) {
 				int diff = canvas.getWidth() - canvas.getHeight();
@@ -1753,21 +1768,21 @@ public class MyApplicationInterface implements ApplicationInterface {
 				p.setTextAlign(Paint.Align.RIGHT);
 			}
 	        Calendar c = Calendar.getInstance();
-
-
-
-
-
+	        // n.b., DateFormat.getTimeInstance() ignores user preferences such as 12/24 hour or date format, but this is an Android bug.
+	        // Whilst DateUtils.formatDateTime doesn't have that problem, it doesn't print out seconds! See:
+	        // http://stackoverflow.com/questions/15981516/simpledateformat-gettimeinstance-ignores-24-hour-format
+	        // http://daniel-codes.blogspot.co.uk/2013/06/how-to-correctly-format-datetime.html
+	        // http://code.google.com/p/android/issues/detail?id=42104
 	        String current_time = DateFormat.getTimeInstance().format(c.getTime());
-
+	        //String current_time = DateUtils.formatDateTime(getContext(), c.getTimeInMillis(), DateUtils.FORMAT_SHOW_TIME);
 	        drawTextWithBackground(canvas, p, current_time, Color.WHITE, Color.BLACK, location_x, location_y, true);
 	    }
 
-		if( camera_controller != null && sharedPreferences.getBoolean(PreferenceKeys.getShowFreeMemoryPreferenceKey(), false) ) {
-			p.setTextSize(14 * scale + 0.5f);
+		if( camera_controller != null && sharedPreferences.getBoolean(PreferenceKeys.getShowFreeMemoryPreferenceKey(), true) ) {
+			p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 			p.setTextAlign(Paint.Align.LEFT);
-			int location_x = (int) (50 * scale + 0.5f);
-			int location_y = top_y + (int) (16 * scale + 0.5f);
+			int location_x = (int) (50 * scale + 0.5f); // convert dps to pixels
+			int location_y = top_y + (int) (16 * scale + 0.5f); // convert dps to pixels
 			if( ui_rotation == 90 || ui_rotation == 270 ) {
 				int diff = canvas.getWidth() - canvas.getHeight();
 				location_x += diff/2;
@@ -1786,7 +1801,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				if( free_mb >= 0 ) {
 					free_memory_gb = free_mb/1024.0f;
 				}
-				last_free_memory_time = time_now;
+				last_free_memory_time = time_now; // always set this, so that in case of free memory not being available, we aren't calling freeMemory() every frame
 			}
 			if( free_memory_gb >= 0.0f ) {
 				drawTextWithBackground(canvas, p, getContext().getResources().getString(R.string.free_memory) + ": " + decimalFormat.format(free_memory_gb) + "GB", Color.WHITE, Color.BLACK, location_x, location_y, true);
@@ -1796,11 +1811,11 @@ public class MyApplicationInterface implements ApplicationInterface {
 		canvas.restore();
 		
 		if( camera_controller != null && !preview.isPreviewPaused() && has_level_angle && sharedPreferences.getBoolean(PreferenceKeys.getShowAngleLinePreferenceKey(), false) ) {
-
+			// n.b., must draw this without the standard canvas rotation
 			int radius_dps = (ui_rotation == 90 || ui_rotation == 270) ? 60 : 80;
-			int radius = (int) (radius_dps * scale + 0.5f);
+			int radius = (int) (radius_dps * scale + 0.5f); // convert dps to pixels
 			double angle = - preview.getOrigLevelAngle();
-
+			// see http://android-developers.blogspot.co.uk/2010/09/one-screen-turn-deserves-another.html
 		    int rotation = main_activity.getWindowManager().getDefaultDisplay().getRotation();
 		    switch (rotation) {
 	    	case Surface.ROTATION_90:
@@ -1810,12 +1825,15 @@ public class MyApplicationInterface implements ApplicationInterface {
     		default:
     			break;
 		    }
-
+			/*if( MyDebug.LOG ) {
+				Log.d(TAG, "orig_level_angle: " + orig_level_angle);
+				Log.d(TAG, "angle: " + angle);
+			}*/
 			int cx = canvas.getWidth()/2;
 			int cy = canvas.getHeight()/2;
 			
 			boolean is_level = false;
-			if( Math.abs(level_angle) <= close_angle ) {
+			if( Math.abs(level_angle) <= close_angle ) { // n.b., use level_angle, not angle or orig_level_angle
 				is_level = true;
 			}
 			
@@ -1828,17 +1846,17 @@ public class MyApplicationInterface implements ApplicationInterface {
 
 			final int line_alpha = 96;
 			p.setStyle(Paint.Style.FILL);
-			float hthickness = (0.5f * scale + 0.5f);
-
+			float hthickness = (0.5f * scale + 0.5f); // convert dps to pixels
+			// draw outline
 			p.setColor(Color.BLACK);
 			p.setAlpha(64);
-
+			// can't use drawRoundRect(left, top, right, bottom, ...) as that requires API 21
 			draw_rect.set(cx - radius - hthickness, cy - 2*hthickness, cx + radius + hthickness, cy + 2*hthickness);
 			canvas.drawRoundRect(draw_rect, 2*hthickness, 2*hthickness, p);
-
+			// draw the vertical crossbar
 			draw_rect.set(cx - 2*hthickness, cy - radius/2 - hthickness, cx + 2*hthickness, cy + radius/2 + hthickness);
 			canvas.drawRoundRect(draw_rect, hthickness, hthickness, p);
-
+			// draw inner portion
 			if( is_level ) {
 				p.setColor(getAngleHighlightColor());
 			}
@@ -1849,12 +1867,12 @@ public class MyApplicationInterface implements ApplicationInterface {
 			draw_rect.set(cx - radius, cy - hthickness, cx + radius, cy + hthickness);
 			canvas.drawRoundRect(draw_rect, hthickness, hthickness, p);
 			
-
+			// draw the vertical crossbar
 			draw_rect.set(cx - hthickness, cy - radius/2, cx + hthickness, cy + radius/2);
 			canvas.drawRoundRect(draw_rect, hthickness, hthickness, p);
 
 			if( is_level ) {
-
+				// draw a second line
 
 				p.setColor(Color.BLACK);
 				p.setAlpha(64);
@@ -1878,8 +1896,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 				float frac = ((float)dt) / (float)length;
 				float pos_x = canvas.getWidth()/2.0f;
 				float pos_y = canvas.getHeight()/2.0f;
-				float min_radius = (float) (40 * scale + 0.5f);
-				float max_radius = (float) (60 * scale + 0.5f);
+				float min_radius = (float) (40 * scale + 0.5f); // convert dps to pixels
+				float max_radius = (float) (60 * scale + 0.5f); // convert dps to pixels
 				float radius = 0.0f;
 				if( frac < 0.5f ) {
 					float alpha = frac*2.0f;
@@ -1889,10 +1907,13 @@ public class MyApplicationInterface implements ApplicationInterface {
 					float alpha = (frac-0.5f)*2.0f;
 					radius = (1.0f-alpha) * max_radius + alpha * min_radius;
 				}
-
+				/*if( MyDebug.LOG ) {
+					Log.d(TAG, "dt: " + dt);
+					Log.d(TAG, "radius: " + radius);
+				}*/
 				p.setStyle(Paint.Style.STROKE);
 				canvas.drawCircle(pos_x, pos_y, radius, p);
-				p.setStyle(Paint.Style.FILL);
+				p.setStyle(Paint.Style.FILL); // reset
 			}
 			else {
 				continuous_focus_moving = false;
@@ -1900,11 +1921,11 @@ public class MyApplicationInterface implements ApplicationInterface {
 		}
 
 		if( preview.isFocusWaiting() || preview.isFocusRecentSuccess() || preview.isFocusRecentFailure() ) {
-			int size = (int) (40 * scale + 0.5f);
+			int size = (int) (40 * scale + 0.5f); // convert dps to pixels
 			if( preview.isFocusRecentSuccess() )
-				p.setColor(Color.rgb(20, 231, 21));
+				p.setColor(Color.rgb(20, 231, 21)); // Green A400
 			else if( preview.isFocusRecentFailure() )
-				p.setColor(Color.rgb(244, 67, 54));
+				p.setColor(Color.rgb(244, 67, 54)); // Red 500
 			else
 				p.setColor(Color.WHITE);
 			p.setStyle(Paint.Style.STROKE);
@@ -1920,34 +1941,52 @@ public class MyApplicationInterface implements ApplicationInterface {
 				pos_y = canvas.getHeight() / 2;
 			}
 			float frac = 0.5f;
-
+			// horizontal strokes
 			canvas.drawLine(pos_x - size, pos_y - size, pos_x - frac*size, pos_y - size, p);
 			canvas.drawLine(pos_x + frac*size, pos_y - size, pos_x + size, pos_y - size, p);
 			canvas.drawLine(pos_x - size, pos_y + size, pos_x - frac*size, pos_y + size, p);
 			canvas.drawLine(pos_x + frac*size, pos_y + size, pos_x + size, pos_y + size, p);
-
+			// vertical strokes
 			canvas.drawLine(pos_x - size, pos_y - size, pos_x - size, pos_y - frac*size, p);
 			canvas.drawLine(pos_x - size, pos_y + frac*size, pos_x - size, pos_y + size, p);
 			canvas.drawLine(pos_x + size, pos_y - size, pos_x + size, pos_y - frac*size, p);
 			canvas.drawLine(pos_x + size, pos_y + frac*size, pos_x + size, pos_y + size, p);
-			p.setStyle(Paint.Style.FILL);
+			p.setStyle(Paint.Style.FILL); // reset
 		}
 
 		CameraController.Face [] faces_detected = preview.getFacesDetected();
 		if( faces_detected != null ) {
-			p.setColor(Color.rgb(255, 235, 59));
+			p.setColor(Color.rgb(255, 235, 59)); // Yellow 500
 			p.setStyle(Paint.Style.STROKE);
 			for(CameraController.Face face : faces_detected) {
-
+				// Android doc recommends filtering out faces with score less than 50 (same for both Camera and Camera2 APIs)
 				if( face.score >= 50 ) {
 					face_rect.set(face.rect);
 					preview.getCameraToPreviewMatrix().mapRect(face_rect);
-
+					/*int eye_radius = (int) (5 * scale + 0.5f); // convert dps to pixels
+					int mouth_radius = (int) (10 * scale + 0.5f); // convert dps to pixels
+					float [] top_left = {face.rect.left, face.rect.top};
+					float [] bottom_right = {face.rect.right, face.rect.bottom};
+					canvas.drawRect(top_left[0], top_left[1], bottom_right[0], bottom_right[1], p);*/
 					canvas.drawRect(face_rect, p);
-
+					/*if( face.leftEye != null ) {
+						float [] left_point = {face.leftEye.x, face.leftEye.y};
+						cameraToPreview(left_point);
+						canvas.drawCircle(left_point[0], left_point[1], eye_radius, p);
+					}
+					if( face.rightEye != null ) {
+						float [] right_point = {face.rightEye.x, face.rightEye.y};
+						cameraToPreview(right_point);
+						canvas.drawCircle(right_point[0], right_point[1], eye_radius, p);
+					}
+					if( face.mouth != null ) {
+						float [] mouth_point = {face.mouth.x, face.mouth.y};
+						cameraToPreview(mouth_point);
+						canvas.drawCircle(mouth_point[0], mouth_point[1], mouth_radius, p);
+					}*/
 				}
 			}
-			p.setStyle(Paint.Style.FILL);
+			p.setStyle(Paint.Style.FILL); // reset
 		}
     }
     
@@ -1957,7 +1996,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     	int mins = (int)(time % 60);
     	time /= 60;
     	long hours = time;
-
+    	//String time_s = hours + ":" + String.format("%02d", mins) + ":" + String.format("%02d", secs) + ":" + String.format("%03d", ms);
     	String time_s = hours + ":" + String.format("%02d", mins) + ":" + String.format("%02d", secs);
     	return time_s;
     }
@@ -1984,21 +2023,23 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( ybounds_text != null ) {
 			text_bounds.bottom = text_bounds.top + alt_height;
 		}
-		final int padding = (int) (2 * scale + 0.5f);
+		final int padding = (int) (2 * scale + 0.5f); // convert dps to pixels
 		if( paint.getTextAlign() == Paint.Align.RIGHT || paint.getTextAlign() == Paint.Align.CENTER ) {
-			float width = paint.measureText(text);
-
+			float width = paint.measureText(text); // n.b., need to use measureText rather than getTextBounds here
+			/*if( MyDebug.LOG )
+				Log.d(TAG, "width: " + width);*/
 			if( paint.getTextAlign() == Paint.Align.CENTER )
 				width /= 2.0f;
 			text_bounds.left -= width;
 			text_bounds.right -= width;
 		}
-
+		/*if( MyDebug.LOG )
+			Log.d(TAG, "text_bounds left-right: " + text_bounds.left + " , " + text_bounds.right);*/
 		text_bounds.left += location_x - padding;
 		text_bounds.right += location_x + padding;
 		if( align_top ) {
 			int height = text_bounds.bottom - text_bounds.top + 2*padding;
-
+			// unclear why we need the offset of -1, but need this to align properly on Galaxy Nexus at least
 			int y_diff = - text_bounds.top + padding - 1;
 			text_bounds.top = location_y - 1;
 			text_bounds.bottom = text_bounds.top + height;
@@ -2043,7 +2084,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		if( getAutoStabilisePref() && main_activity.getPreview().hasLevelAngle() )
 		{
 			double level_angle = main_activity.getPreview().getLevelAngle();
-
+			//level_angle = -129;
 			if( main_activity.test_have_angle )
 				level_angle = main_activity.test_angle;
 			while( level_angle < -90 )
@@ -2053,9 +2094,9 @@ public class MyApplicationInterface implements ApplicationInterface {
 			if( MyDebug.LOG )
 				Log.d(TAG, "auto stabilising... angle: " + level_angle);
 			BitmapFactory.Options options = new BitmapFactory.Options();
-
+			//options.inMutable = true;
 			if( Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT ) {
-
+				// setting is ignored in Android 5 onwards
 				options.inPurgeable = true;
 			}
 			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -2071,7 +2112,13 @@ public class MyApplicationInterface implements ApplicationInterface {
     				Log.d(TAG, "decoded bitmap size " + width + ", " + height);
     				Log.d(TAG, "bitmap size: " + width*height*4);
     			}
-
+    			/*for(int y=0;y<height;y++) {
+    				for(int x=0;x<width;x++) {
+    					int col = bitmap.getPixel(x, y);
+    					col = col & 0xffff0000; // mask out red component
+    					bitmap.setPixel(x, y, col);
+    				}
+    			}*/
     			if( main_activity.test_low_memory ) {
     		    	level_angle = 45.0;
     			}
@@ -2080,14 +2127,14 @@ public class MyApplicationInterface implements ApplicationInterface {
     		    int w1 = width, h1 = height;
     		    double w0 = (w1 * Math.cos(level_angle_rad_abs) + h1 * Math.sin(level_angle_rad_abs));
     		    double h0 = (w1 * Math.sin(level_angle_rad_abs) + h1 * Math.cos(level_angle_rad_abs));
-
+    		    // apply a scale so that the overall image size isn't increased
     		    float orig_size = w1*h1;
     		    float rotated_size = (float)(w0*h0);
     		    float scale = (float)Math.sqrt(orig_size/rotated_size);
     			if( main_activity.test_low_memory ) {
         			if( MyDebug.LOG )
         				Log.d(TAG, "TESTING LOW MEMORY");
-    		    	scale *= 2.0f;
+    		    	scale *= 2.0f; // test 20MP on Galaxy Nexus or Nexus 7; 52MP on Nexus 6
     			}
     			if( MyDebug.LOG ) {
     				Log.d(TAG, "w0 = " + w0 + " , h0 = " + h0);
@@ -2103,7 +2150,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     				Log.d(TAG, "after scaling: w0 = " + w0 + " , h0 = " + h0);
     				Log.d(TAG, "after scaling: w1 = " + w1 + " , h1 = " + h1);
     			}
-
+				// I have received crashes where camera_controller was null - could perhaps happen if this thread was running just as the camera is closing?
     		    if( main_activity.getPreview().getCameraController() != null && main_activity.getPreview().getCameraController().isFrontFacing() ) {
         		    matrix.postRotate((float)-level_angle);
     		    }
@@ -2111,7 +2158,7 @@ public class MyApplicationInterface implements ApplicationInterface {
         		    matrix.postRotate((float)level_angle);
     		    }
     		    Bitmap new_bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
-
+    		    // careful, as new_bitmap is sometimes not a copy!
     		    if( new_bitmap != bitmap ) {
     		    	bitmap.recycle();
     		    	bitmap = new_bitmap;
@@ -2139,7 +2186,7 @@ public class MyApplicationInterface implements ApplicationInterface {
         			int alt_h2 = (int)(( w0 + 2.0*w1*sin_theta*tan_theta - h0*tan_theta ) / alt_denom);
         			int alt_w2 = (int)(alt_h2*w0/(double)h0);
         			if( MyDebug.LOG ) {
-
+        				//Log.d(TAG, "h0 " + h0 + " 2.0*h1*sin_theta*tan_theta " + 2.0*h1*sin_theta*tan_theta + " w0*tan_theta " + w0*tan_theta + " / h0/w0 " + h0/w0 + " tan_theta " + tan_theta);
         				Log.d(TAG, "w2 = " + w2 + " , h2 = " + h2);
         				Log.d(TAG, "alt_w2 = " + alt_w2 + " , alt_h2 = " + alt_h2);
         			}
@@ -2183,7 +2230,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				BitmapFactory.Options options = new BitmapFactory.Options();
 				options.inMutable = true;
 				if( Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT ) {
-
+					// setting is ignored in Android 5 onwards
 					options.inPurgeable = true;
 				}
     			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -2204,20 +2251,20 @@ public class MyApplicationInterface implements ApplicationInterface {
     			Canvas canvas = new Canvas(bitmap);
     			p.setColor(Color.WHITE);
     			int font_size = getTextStampFontSizePref();
-
-
+    			// we don't use the density of the screen, because we're stamping to the image, not drawing on the screen (we don't want the font height to depend on the device's resolution
+    			// instead we go by 1 pt == 1/72 inch height, and scale for an image height (or width if in portrait) of 4" (this means the font height is also independent of the photo resolution)
     			int smallest_size = (width<height) ? width : height;
     			float scale = ((float)smallest_size) / (72.0f*4.0f);
-    			int font_size_pixel = (int)(font_size * scale + 0.5f);
+    			int font_size_pixel = (int)(font_size * scale + 0.5f); // convert pt to pixels
     			if( MyDebug.LOG ) {
     				Log.d(TAG, "scale: " + scale);
     				Log.d(TAG, "font_size: " + font_size);
     				Log.d(TAG, "font_size_pixel: " + font_size_pixel);
     			}
     			p.setTextSize(font_size_pixel);
-    	        int offset_x = (int)(8 * scale + 0.5f);
-    	        int offset_y = (int)(8 * scale + 0.5f);
-    	        int diff_y = (int)((font_size+4) * scale + 0.5f);
+    	        int offset_x = (int)(8 * scale + 0.5f); // convert pt to pixels
+    	        int offset_y = (int)(8 * scale + 0.5f); // convert pt to pixels
+    	        int diff_y = (int)((font_size+4) * scale + 0.5f); // convert pt to pixels
     	        int ypos = height - offset_y;
     	        p.setTextAlign(Align.RIGHT);
     	        int color = getStampFontColor();
@@ -2233,7 +2280,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     	        if( dategeo_stamp ) {
         			if( MyDebug.LOG )
         				Log.d(TAG, "stamp date");
-
+        			// doesn't respect user preferences such as 12/24 hour - see note about in draw() about DateFormat.getTimeInstance()
         			Date current_date = new Date();
         			String preference_stamp_dateformat = this.getStampDateFormatPref();
         			String preference_stamp_timeformat = this.getStampTimeFormatPref();
@@ -2245,7 +2292,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	        				date_stamp = new SimpleDateFormat("dd/MM/yyyy").format(current_date);
             			else if( preference_stamp_dateformat.equals("preference_stamp_dateformat_mmddyyyy") )
 	        				date_stamp = new SimpleDateFormat("MM/dd/yyyy").format(current_date);
-	        			else
+	        			else // default
 	        				date_stamp = DateFormat.getDateInstance().format(current_date);
         			}
         			if( !preference_stamp_timeformat.equals("preference_stamp_timeformat_none") ) {
@@ -2253,7 +2300,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	        				time_stamp = new SimpleDateFormat("hh:mm:ss a").format(current_date);
             			else if( preference_stamp_timeformat.equals("preference_stamp_timeformat_24hour") )
             				time_stamp = new SimpleDateFormat("HH:mm:ss").format(current_date);
-	        			else
+	        			else // default
 	            	        time_stamp = DateFormat.getTimeInstance().format(current_date);
         			}
         			if( MyDebug.LOG ) {
@@ -2316,7 +2363,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 
 		int exif_orientation_s = ExifInterface.ORIENTATION_UNDEFINED;
 		File picFile = null;
-		Uri saveUri = null;
+		Uri saveUri = null; // if non-null, then picFile is a temporary file, which afterwards we should redirect to saveUri
         try {
 			OutputStream outputStream = null;
 			if( image_capture_intent ) {
@@ -2324,25 +2371,25 @@ public class MyApplicationInterface implements ApplicationInterface {
     				Log.d(TAG, "image_capture_intent");
     			if( image_capture_intent_uri != null )
     			{
-
+    			    // Save the bitmap to the specified URI (use a try/catch block)
         			if( MyDebug.LOG )
         				Log.d(TAG, "save to: " + image_capture_intent_uri);
-
+    			    //outputStream = main_activity.getContentResolver().openOutputStream(image_capture_intent_uri);
         			saveUri = image_capture_intent_uri;
     			}
     			else
     			{
-
-
+    			    // If the intent doesn't contain an URI, send the bitmap as a parcel
+    			    // (it is a good idea to reduce its size to ~50k pixels before)
         			if( MyDebug.LOG )
         				Log.d(TAG, "sent to intent via parcel");
     				if( bitmap == null ) {
 	        			if( MyDebug.LOG )
 	        				Log.d(TAG, "create bitmap");
 	    				BitmapFactory.Options options = new BitmapFactory.Options();
-
+	    				//options.inMutable = true;
 	    				if( Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT ) {
-
+	    					// setting is ignored in Android 5 onwards
 	    					options.inPurgeable = true;
 	    				}
 	        			bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -2362,7 +2409,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		        		    Matrix matrix = new Matrix();
 		        		    matrix.postScale(scale, scale);
 		        		    Bitmap new_bitmap = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
-
+		        		    // careful, as new_bitmap is sometimes not a copy!
 		        		    if( new_bitmap != bitmap ) {
 		        		    	bitmap.recycle();
 		        		    	bitmap = new_bitmap;
@@ -2385,7 +2432,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 			else if( storageUtils.isUsingSAF() ) {
 				saveUri = storageUtils.createOutputMediaFileSAF(StorageUtils.MEDIA_TYPE_IMAGE);
-
+			    //outputStream = main_activity.getContentResolver().openOutputStream(uriSAF);
 			}
 			else {
     			picFile = storageUtils.createOutputMediaFile(StorageUtils.MEDIA_TYPE_IMAGE);
@@ -2415,12 +2462,12 @@ public class MyApplicationInterface implements ApplicationInterface {
 	    		if( MyDebug.LOG )
 	    			Log.d(TAG, "onPictureTaken saved photo");
 
-	    		if( saveUri == null ) {
+	    		if( saveUri == null ) { // if saveUri is non-null, then we haven't succeeded until we've copied to the saveUri
 	    			success = true;
 	    		}
 	            if( picFile != null ) {
 	            	if( bitmap != null ) {
-
+	            		// need to update EXIF data!
         	    		if( MyDebug.LOG )
         	    			Log.d(TAG, "write temp file to record EXIF data");
 	            		File tempFile = File.createTempFile("opencamera_exif", "");
@@ -2444,12 +2491,12 @@ public class MyApplicationInterface implements ApplicationInterface {
     	            	String exif_gps_longitude_ref = exif.getAttribute(ExifInterface.TAG_GPS_LONGITUDE_REF);
     	            	String exif_gps_processing_method = exif.getAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD);
     	            	String exif_gps_timestamp = exif.getAttribute(ExifInterface.TAG_GPS_TIMESTAMP);
-
+    	            	// leave width/height, as this will have changed!
     	            	String exif_iso = exif.getAttribute(ExifInterface.TAG_ISO);
     	            	String exif_make = exif.getAttribute(ExifInterface.TAG_MAKE);
     	            	String exif_model = exif.getAttribute(ExifInterface.TAG_MODEL);
     	            	int exif_orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
-    	            	exif_orientation_s = exif_orientation;
+    	            	exif_orientation_s = exif_orientation; // store for later use (for the thumbnail, to save rereading it)
     	            	String exif_white_balance = exif.getAttribute(ExifInterface.TAG_WHITE_BALANCE);
 
     					if( !tempFile.delete() ) {
@@ -2487,7 +2534,7 @@ public class MyApplicationInterface implements ApplicationInterface {
         	            	exif_new.setAttribute(ExifInterface.TAG_GPS_PROCESSING_METHOD, exif_gps_processing_method);
         	            if( exif_gps_timestamp != null )
         	            	exif_new.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, exif_gps_timestamp);
-
+    	            	// leave width/height, as this will have changed!
         	            if( exif_iso != null )
         	            	exif_new.setAttribute(ExifInterface.TAG_ISO, exif_iso);
         	            if( exif_make != null )
@@ -2535,7 +2582,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	            	}
 
     	            if( saveUri == null ) {
-
+    	            	// broadcast for SAF is done later, when we've actually written out the file
     	            	storageUtils.broadcastFile(picFile, true, false);
     	            	main_activity.test_last_saved_image = picFile.getAbsolutePath();
     	            }
@@ -2547,7 +2594,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 	            	main_activity.finish();
 	            }
 	            if( storageUtils.isUsingSAF() ) {
-
+	            	// most Gallery apps don't seem to recognise the SAF-format Uri, so just clear the field
 	            	storageUtils.clearLastMediaScanned();
 	            }
 
@@ -2556,7 +2603,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     	    			Log.d(TAG, "now save to saveUri: " + saveUri);
 		            InputStream inputStream = new FileInputStream(picFile);
 	    		    OutputStream realOutputStream = main_activity.getContentResolver().openOutputStream(saveUri);
-
+	    		    // Transfer bytes from in to out
 	    		    byte [] buffer = new byte[1024];
 	    		    int len = 0;
 	    		    while( (len = inputStream.read(buffer)) > 0 ) {
@@ -2565,7 +2612,15 @@ public class MyApplicationInterface implements ApplicationInterface {
 	    		    inputStream.close();
 	    		    realOutputStream.close();
 	    		    success = true;
-
+	    		    /* We still need to broadcastFile for SAF for two reasons:
+	    		    	1. To call storageUtils.announceUri() to broadcast NEW_PICTURE etc.
+	    		           Whilst in theory we could do this directly, it seems external apps that use such broadcasts typically
+	    		           won't know what to do with a SAF based Uri (e.g, Owncloud crashes!) so better to broadcast the Uri
+	    		           corresponding to the real file, if it exists.
+	    		        2. Whilst the new file seems to be known by external apps such as Gallery without having to call media
+	    		           scanner, I've had reports this doesn't happen when saving to external SD cards. So better to explicitly
+	    		           scan.
+	    		    */
 		    	    File real_file = storageUtils.getFileFromDocumentUriSAF(saveUri);
 					if( MyDebug.LOG )
 						Log.d(TAG, "real_file: " + real_file);
@@ -2578,8 +2633,8 @@ public class MyApplicationInterface implements ApplicationInterface {
                     else if( !image_capture_intent ) {
     					if( MyDebug.LOG )
     						Log.d(TAG, "announce SAF uri");
-
-
+                    	// announce the SAF Uri
+                    	// (shouldn't do this for a capture intent - e.g., causes crash when calling from Google Keep)
     	    		    storageUtils.announceUri(saveUri, true, false);
                     }
 	            }
@@ -2614,15 +2669,15 @@ public class MyApplicationInterface implements ApplicationInterface {
         	last_image_uri = null;
         }
 
-
+		// I have received crashes where camera_controller was null - could perhaps happen if this thread was running just as the camera is closing?
         if( success && main_activity.getPreview().getCameraController() != null ) {
-
+        	// update thumbnail - this should be done after restarting preview, so that the preview is started asap
         	long time_s = System.currentTimeMillis();
         	CameraController.Size size = main_activity.getPreview().getCameraController().getPictureSize();
     		int ratio = (int) Math.ceil((double) size.width / main_activity.getPreview().getView().getWidth());
-    		int sample_size = Integer.highestOneBit(ratio) * 4;
+    		int sample_size = Integer.highestOneBit(ratio) * 4; // * 4 to increase performance, without noticeable loss in visual quality
 			if( !getThumbnailAnimationPref() ) {
-
+				// can use lower resolution if we don't have the thumbnail animation
 				sample_size *= 4;
 			}
     		if( MyDebug.LOG ) {
@@ -2636,7 +2691,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				BitmapFactory.Options options = new BitmapFactory.Options();
 				options.inMutable = false;
 				if( Build.VERSION.SDK_INT <= Build.VERSION_CODES.KITKAT ) {
-
+					// setting is ignored in Android 5 onwards
 					options.inPurgeable = true;
 				}
 				options.inSampleSize = sample_size;
@@ -2653,12 +2708,12 @@ public class MyApplicationInterface implements ApplicationInterface {
     		    thumbnail = Bitmap.createBitmap(bitmap, 0, 0, width, height, matrix, true);
 			}
 			if( thumbnail == null ) {
-
+				// received crashes on Google Play suggesting that thumbnail could not be created
 	    		if( MyDebug.LOG )
 	    			Log.e(TAG, "failed to create thumbnail bitmap");
 			}
 			else {
-
+				// now get the rotation from the Exif data
 				thumbnail = rotateForExif(thumbnail, exif_orientation_s, picFile.getAbsolutePath());
 
 				updateThumbnail(thumbnail);
@@ -2692,7 +2747,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     private Bitmap rotateForExif(Bitmap bitmap, int exif_orientation_s, String path) {
 		try {
 			if( exif_orientation_s == ExifInterface.ORIENTATION_UNDEFINED ) {
-
+				// haven't already read the exif orientation (or it didn't exist?)
 	    		if( MyDebug.LOG )
 	    			Log.d(TAG, "    read exif orientation");
             	ExifInterface exif = new ExifInterface(path);
@@ -2702,10 +2757,10 @@ public class MyApplicationInterface implements ApplicationInterface {
     			Log.d(TAG, "    exif orientation string: " + exif_orientation_s);
     		boolean needs_tf = false;
 			int exif_orientation = 0;
-
-
+			// from http://jpegclub.org/exif_orientation.html
+			// and http://stackoverflow.com/questions/20478765/how-to-get-the-correct-orientation-of-the-image-selected-from-the-default-image
 			if( exif_orientation_s == ExifInterface.ORIENTATION_UNDEFINED || exif_orientation_s == ExifInterface.ORIENTATION_NORMAL ) {
-
+				// leave unchanged
 			}
 			else if( exif_orientation_s == ExifInterface.ORIENTATION_ROTATE_180 ) {
 				needs_tf = true;
@@ -2720,7 +2775,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 				exif_orientation = 270;
 			}
 			else {
-
+				// just leave unchanged for now
 	    		if( MyDebug.LOG )
 	    			Log.e(TAG, "    unsupported exif orientation: " + exif_orientation_s);
 			}
@@ -2753,7 +2808,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			}
 			if( MyDebug.LOG )
 				Log.d(TAG, "save geo_angle: " + geo_angle);
-
+			// see http://www.sno.phy.queensu.ca/~phil/exiftool/TagNames/GPS.html
 			String GPSImgDirection_string = Math.round(geo_angle*100) + "/100";
 			if( MyDebug.LOG )
 				Log.d(TAG, "GPSImgDirection_string: " + GPSImgDirection_string);
@@ -2775,10 +2830,10 @@ public class MyApplicationInterface implements ApplicationInterface {
 	private void fixGPSTimestamp(ExifInterface exif) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "fixGPSTimestamp");
-
-
-
-
+		// hack: problem on Camera2 API (at least on Nexus 6) that if geotagging is enabled, then the resultant image has incorrect Exif TAG_GPS_DATESTAMP (GPSDateStamp) set (tends to be around 2038 - possibly a driver bug of casting long to int?)
+		// whilst we don't yet correct for that bug, the more immediate problem is that it also messes up the DATE_TAKEN field in the media store, which messes up Gallery apps
+		// so for now, we correct it based on the DATE_ADDED value.
+    	// see http://stackoverflow.com/questions/4879435/android-put-gpstimestamp-into-jpg-exif-tags
     	exif.setAttribute(ExifInterface.TAG_GPS_TIMESTAMP, Long.toString(System.currentTimeMillis()));
 	}
 	
@@ -2815,7 +2870,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			if( last_image_saf && last_image_uri != null ) {
 				if( MyDebug.LOG )
 					Log.d(TAG, "Delete: " + last_image_uri);
-	    	    File file = storageUtils.getFileFromDocumentUriSAF(last_image_uri);
+	    	    File file = storageUtils.getFileFromDocumentUriSAF(last_image_uri); // need to get file before deleting it, as fileFromDocumentUriSAF may depend on the file still existing
 				if( !DocumentsContract.deleteDocument(main_activity.getContentResolver(), last_image_uri) ) {
 					if( MyDebug.LOG )
 						Log.e(TAG, "failed to delete " + last_image_uri);
@@ -2825,7 +2880,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 						Log.d(TAG, "successfully deleted " + last_image_uri);
     	    	    preview.showToast(null, R.string.photo_deleted);
                     if( file != null ) {
-
+                    	// SAF doesn't broadcast when deleting them
     	            	storageUtils.broadcastFile(file, false, false);
                     }
 				}
@@ -2850,8 +2905,8 @@ public class MyApplicationInterface implements ApplicationInterface {
 			last_image_uri = null;
 			preview.startCameraPreview();
 		}
-
-
+    	// Calling updateGalleryIcon() immediately has problem that it still returns the latest image that we've just deleted!
+    	// But works okay if we call after a delay. 100ms works fine on Nexus 7 and Galaxy Nexus, but set to 500 just to be safe.
     	final Handler handler = new Handler();
 		handler.postDelayed(new Runnable() {
 			@Override
@@ -2861,7 +2916,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 		}, 500);
 	}
 
-
+	// for testing
 
 	public boolean hasThumbnailAnimation() {
 		return this.thumbnail_anim;
