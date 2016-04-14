@@ -1625,7 +1625,8 @@ public class MyApplicationInterface implements ApplicationInterface {
             		drawTextWithBackground(canvas, p, getContext().getResources().getString(R.string.screen_lock_message_1), color, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y);
             		pixels_offset_y += text_y;
             	}
-            	drawTextWithBackground(canvas, p, time_s, color, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y);
+				//不显示录制时间
+            	//drawTextWithBackground(canvas, p, time_s, color, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y);
 			}
 		}
 		else if( camera_controller == null ) {
