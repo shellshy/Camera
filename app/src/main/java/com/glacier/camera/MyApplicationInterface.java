@@ -526,7 +526,7 @@ public class MyApplicationInterface implements ApplicationInterface {
     @Override
     public boolean getShutterSoundPref() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
-    	return sharedPreferences.getBoolean(PreferenceKeys.getShutterSoundPreferenceKey(), true);
+    	return sharedPreferences.getBoolean(PreferenceKeys.getShutterSoundPreferenceKey(), false);
     }
 
     @Override
@@ -1028,7 +1028,7 @@ public class MyApplicationInterface implements ApplicationInterface {
 			if( MyDebug.LOG )
 				Log.d(TAG, "play beep!");
 			boolean is_last = remaining_time <= 1000;
-			main_activity.playSound(is_last ? R.raw.beep_hi : R.raw.beep);
+			//main_activity.playSound(is_last ? R.raw.beep_hi : R.raw.beep);
 		}
 		if( sharedPreferences.getBoolean(PreferenceKeys.getTimerSpeakPreferenceKey(), false) ) {
 			if( MyDebug.LOG )

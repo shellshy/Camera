@@ -331,6 +331,12 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
         if (MyDebug.LOG)
             Log.d(TAG, "onCreate: total time for Activity startup: " + (System.currentTimeMillis() - debug_time));
 
+
+        //先解除锁定曝光
+        preview.unlockExposureLock();
+        ImageButton exposureLockButton = (ImageButton) findViewById(R.id.exposure_lock);
+        exposureLockButton.setImageResource(preview.isExposureLocked() ? R.drawable.exposure_locked : R.drawable.exposure_unlocked);
+
         if (getIntent().hasExtra("auto_lock")) {
             preview.setAutoLockExposure(getIntent().getExtras().getBoolean("auto_lock", false));
         }

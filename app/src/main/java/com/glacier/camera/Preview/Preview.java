@@ -842,12 +842,12 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
 					String toast = null;
 					if( !due_to_max_filesize )
 						toast = remaining_restart_video + " " + getContext().getResources().getString(R.string.repeats_to_go);
+
 					takePicture(due_to_max_filesize);
+
 					if( !due_to_max_filesize ) {
 						//showToast(null, toast); // show the toast afterwards, as we're hogging the UI thread here, and media recorder takes time to start up
 						// must decrement after calling takePicture(), so that takePicture() doesn't reset the value of remaining_restart_video
-
-						lockExposure();
 						remaining_restart_video--;
 					}
 				}
@@ -860,10 +860,11 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
 
 	private void lockExposure(){
 		//CamUtil.setVideoDuration(getContext(),10);
-		if(supportsExposureLock() && is_exposure_locked == false && auto_lock_exposure == true){
+		if(supportsExposureLock() && auto_lock_exposure == true){
 			is_exposure_locked = true;
 			cancelAutoFocus();
 			camera_controller.setAutoExposureLock(is_exposure_locked);
+			Toast.makeText(getContext(),"lock",Toast.LENGTH_SHORT).show();
 		}
 	}
 
@@ -3210,6 +3211,19 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
 		}
 	}
 
+	public void unlockExposureLock(){
+		if( camera_controller == null ) {
+			if( MyDebug.LOG )
+				Log.d(TAG, "camera not opened!");
+			return;
+		}
+		if( is_exposure_lock_supported ) {
+			is_exposure_locked = false;
+			cancelAutoFocus();
+			camera_controller.setAutoExposureLock(is_exposure_locked);
+		}
+	}
+
 	public void toggleExposureLock() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "toggleExposureLock()");
@@ -3475,7 +3489,18 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
 		if( is_video ) {
     		if( MyDebug.LOG )
     			Log.d(TAG, "start video recording");
-    		startVideoRecording(max_filesize_restart);
+			if(step ==0){
+				startVideoRecording(max_filesize_restart);
+			}else if(step == 1){
+				final boolean max = max_filesize_restart;
+				new Handler().postDelayed(new Runnable() {
+					@Override
+					public void run() {
+						lockExposure();
+						startVideoRecording(max);
+					}
+				},3000);
+			}
         	return;
 		}
 
@@ -3787,7 +3812,7 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
 						step = 1;
 						restartVideoTimer.schedule(restartVideoTimerTask = new RestartVideoTimerTask(), 3000);
 					}else if(step == 1){
-						step = 0;
+						step = 2;
 						restartVideoTimer.schedule(restartVideoTimerTask = new RestartVideoTimerTask(), video_max_duration);
 					}
 				}
