@@ -26,7 +26,7 @@ public class TestActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_test);
         Button btnStart = (Button) findViewById(R.id.btnStart);
-        run = (CheckBox) findViewById(R.id.autorun);
+        /*run = (CheckBox) findViewById(R.id.autorun);
         lock = (CheckBox) findViewById(R.id.autolock);
         CameraController controller = null;
         try {
@@ -62,17 +62,15 @@ public class TestActivity extends Activity {
         if (controller != null) {
             controller.release();
         }
-        CamUtil.setRepeatRecord(TestActivity.this);
+        CamUtil.setRepeatRecord(TestActivity.this);*/
         btnStart.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 //auto_run为自动开始拍摄
                 // auto_lock为自动锁定曝光
-                boolean r = run.isChecked();
-                boolean l = lock.isChecked();
-                startActivity(new Intent(TestActivity.this, MainActivity.class)
-                        .putExtra("auto_run",r)
-                        .putExtra("auto_lock",l));
+                /*boolean r = run.isChecked();
+                boolean l = lock.isChecked();*/
+                startActivity(new Intent(TestActivity.this, MainActivity.class));
             }
         });
     }

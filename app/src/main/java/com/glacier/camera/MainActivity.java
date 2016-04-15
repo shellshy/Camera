@@ -5,6 +5,7 @@ import com.glacier.camera.CameraController.CameraControllerManager2;
 import com.glacier.camera.Preview.Preview;
 import com.glacier.camera.UI.FolderChooserDialog;
 import com.glacier.camera.UI.MainUI;
+import com.glacier.camera.Util.CamUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -336,19 +337,66 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
         preview.unlockExposureLock();
         ImageButton exposureLockButton = (ImageButton) findViewById(R.id.exposure_lock);
         exposureLockButton.setImageResource(preview.isExposureLocked() ? R.drawable.exposure_locked : R.drawable.exposure_unlocked);
-
-        if (getIntent().hasExtra("auto_lock")) {
-            preview.setAutoLockExposure(getIntent().getExtras().getBoolean("auto_lock", false));
-        }
-        if (getIntent().hasExtra("auto_run")) {
-            if (getIntent().getExtras().getBoolean("auto_run", false)) {
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        takePicture();
-                    }
-                }, 3000);
+        CameraController controller = null;
+        try {
+            controller = CamUtil.getCameraController(MainActivity.this);
+            CameraController.CameraFeatures camera_features = controller.getCameraFeatures();
+            List<CameraController.Size> view_sizes = camera_features.video_sizes;
+            int vz = 0;
+            int target = 0;
+            boolean get = false;
+            for (CameraController.Size size : view_sizes) {
+                if (size.width == 640 && size.height == 480) {
+                    target = vz;
+                    get = true;
+                    break;
+                }
+                vz++;
             }
+            if (!get) {
+                vz = 0;
+                for (CameraController.Size size : view_sizes) {
+                    if (size.width == 640) {
+                        target = vz;
+                        get = true;
+                        break;
+                    }
+                    vz++;
+                }
+            }
+            if (!get) {
+                vz = 0;
+                for (CameraController.Size size : view_sizes) {
+                    if (size.height == 480) {
+                        target = vz;
+                        get = true;
+                        break;
+                    }
+                    vz++;
+                }
+                target = vz;
+            }
+            CamUtil.setVideoResolution(MainActivity.this, target);
+            CameraController.SupportedValues iso = controller.setISO("1600");
+            List<String> iso_values = iso.values;
+            String v = "";
+            for (String i : iso_values) {
+                v = i;
+                Log.i("camera iso", i);
+            }
+            CamUtil.setIso(MainActivity.this, v);
+            CamUtil.setVideoDuration(MainActivity.this, 5);
+            CamUtil.setRepeatRecord(MainActivity.this);
+            controller.release();
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    takePicture();
+                }
+            }, 1000);
+
+        }catch (Exception e){
+            controller.release();
         }
     }
 
@@ -440,7 +488,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
 
     public void onAudio(int level) {
         boolean audio_trigger = false;
-		/*if( level > 150 ) {
+        /*if( level > 150 ) {
 			if( MyDebug.LOG )
 				Log.d(TAG, "loud noise!: " + level);
 			audio_trigger = true;
