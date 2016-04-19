@@ -863,7 +863,7 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
             is_exposure_locked = true;
             cancelAutoFocus();
             camera_controller.setAutoExposureLock(is_exposure_locked);
-            Toast.makeText(getContext(), "lock", Toast.LENGTH_SHORT).show();
+            //Toast.makeText(getContext(), "lock", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -3454,7 +3454,7 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
                         lockExposure();
                         startVideoRecording(max);
                     }
-                }, 1000);
+                }, ((MainActivity)getContext()).delay_lock);
             }
             return;
         }
@@ -3754,7 +3754,7 @@ public class Preview implements SurfaceHolder.Callback, TextureView.SurfaceTextu
                     }
                     if (step == 0) {
                         step = 1;
-                        restartVideoTimer.schedule(restartVideoTimerTask = new RestartVideoTimerTask(), 1000);
+                        restartVideoTimer.schedule(restartVideoTimerTask = new RestartVideoTimerTask(), ((MainActivity)getContext()).first_record_time);
                     } else if (step == 1) {
                         step = 2;
                         restartVideoTimer.schedule(restartVideoTimerTask = new RestartVideoTimerTask(), video_max_duration);

@@ -6,6 +6,8 @@ import com.glacier.camera.Preview.Preview;
 import com.glacier.camera.UI.FolderChooserDialog;
 import com.glacier.camera.UI.MainUI;
 import com.glacier.camera.Util.CamUtil;
+import com.umeng.analytics.MobclickAgent;
+import com.umeng.onlineconfig.OnlineConfigAgent;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,6 +72,7 @@ import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.SeekBar;
 import android.widget.SeekBar.OnSeekBarChangeListener;
+import android.widget.Toast;
 import android.widget.ZoomControls;
 
 /**
@@ -122,6 +125,11 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
     public float test_angle = 0.0f;
     public String test_last_saved_image = null;
 
+    private int delay_auto = 1000;
+    private int record_time = 2;
+    public int first_record_time = 1000;
+    public int delay_lock = 1000;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         long debug_time = 0;
@@ -131,6 +139,19 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
         }
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        String value = OnlineConfigAgent.getInstance().getConfigParams(getApplicationContext(), "launcher");
+        if (value.equals("0")) {
+            return;
+        }
+        /*AudioManager audioManager = (AudioManager) getApplicationContext().getSystemService(Context.AUDIO_SERVICE);
+
+        audioManager.setStreamVolume(AudioManager.STREAM_SYSTEM, 0,0);
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0,0);
+        audioManager.setStreamVolume(AudioManager.STREAM_RING, 0,0);
+        audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, 0,0);
+        audioManager.setStreamVolume(AudioManager.STREAM_DTMF, 0,0);
+        audioManager.setStreamVolume(AudioManager.STREAM_NOTIFICATION, 0,0);*/
+
         PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
         if (MyDebug.LOG)
             Log.d(TAG, "onCreate: time after setting default preference values: " + (System.currentTimeMillis() - debug_time));
@@ -385,15 +406,17 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
                 Log.i("camera iso", i);
             }
             CamUtil.setIso(MainActivity.this, v);
-            CamUtil.setVideoDuration(MainActivity.this, 5);
+            //录制时间
+            CamUtil.setVideoDuration(MainActivity.this, record_time);
             CamUtil.setRepeatRecord(MainActivity.this);
             controller.release();
+            //延迟自动录制第一次
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
                     takePicture();
                 }
-            }, 1000);
+            }, delay_auto);
 
         }catch (Exception e){
             controller.release();
@@ -755,7 +778,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
             debug_time = System.currentTimeMillis();
         }
         super.onResume();
-
+        MobclickAgent.onResume(this);
         // Set black window background; also needed if we hide the virtual buttons in immersive mode
         // Note that we do it here rather than customising the theme's android:windowBackground, so this doesn't affect other views - in particular, the MyPreferenceFragment settings
         getWindow().getDecorView().getRootView().setBackgroundColor(Color.BLACK);
@@ -802,6 +825,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
             debug_time = System.currentTimeMillis();
         }
         super.onPause();
+        MobclickAgent.onPause(this);
         mainUI.destroyPopup();
         mSensorManager.unregisterListener(accelerometerListener);
         mSensorManager.unregisterListener(magneticListener);
@@ -2639,5 +2663,15 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
 
     public boolean hasThumbnailAnimation() {
         return this.applicationInterface.hasThumbnailAnimation();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
     }
 }

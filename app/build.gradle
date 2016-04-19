@@ -35,7 +35,8 @@ android {
 }
 
 dependencies {
-    compile fileTree(dir: 'libs', include: ['*.jar'])
-
+    compile fileTree(include: ['*.jar'], dir: 'libs')
+    compile 'com.umeng.analytics:analytics:latest.integration'
     compile 'com.android.support:appcompat-v7:23.2.1'
+    compile files('libs/umeng-onlineconfig_v1.0.0.jar')
 }
