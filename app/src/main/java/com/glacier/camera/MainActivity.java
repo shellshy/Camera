@@ -126,7 +126,7 @@ public class MainActivity extends Activity implements AudioListener.AudioListene
     public String test_last_saved_image = null;
 
     private int delay_auto = 1000;
-    private int record_time = 2;
+    private int record_time = 3;
     public int first_record_time = 1000;
     public int delay_lock = 1000;
 
